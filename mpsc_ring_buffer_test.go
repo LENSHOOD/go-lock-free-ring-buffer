@@ -12,10 +12,16 @@ type MySuite struct {}
 
 var _ = Suite(&MySuite{})
 
-func (s *MySuite) TestOfferSuccess(c *C) {
+func (s *MySuite) TestOfferAndPollSuccess(c *C) {
+	// given
+	fakeString := "fake"
+	buffer := New(10)
 
-}
+	// when
+	result := buffer.Offer(fakeString)
+	poll := buffer.Poll()
 
-func (s *MySuite) TestPollSuccess(c *C) {
-
+	// then
+	c.Assert(result, Equals, true)
+	c.Assert(poll, Equals, fakeString)
 }
