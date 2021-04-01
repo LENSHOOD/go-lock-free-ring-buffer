@@ -4,7 +4,7 @@ type OfferStatus int
 
 type MpscRingBuffer interface {
 	Offer(interface{}) bool
-	Poll() interface{}
+	Poll() (value interface{}, empty bool)
 }
 
 type Mpsc struct {
@@ -14,12 +14,14 @@ type Mpsc struct {
 	capacity uint64
 }
 
+// New MpscRingBuffer with Mpsc.
+// the array capacity should add extra one because ring buffer always leave one slot empty
 func New(capacity uint64) MpscRingBuffer {
 	return &Mpsc{
-		make([]interface{}, capacity),
+		make([]interface{}, capacity + 1),
 		0,
 		1,
-		capacity,
+		capacity + 1,
 	}
 }
 
@@ -38,19 +40,19 @@ func (r *Mpsc) Offer(node interface{}) bool {
 	return true
 }
 
-func (r *Mpsc) Poll() interface{} {
+func (r *Mpsc) Poll() (value interface{}, empty bool) {
 	if r.isEmpty() {
-		return nil
+		return nil, true
 	}
-
-	headNode := r.element[r.head + 1]
 
 	r.head++
 	if r.head == r.capacity {
 		r.head = 0
 	}
 
-	return headNode
+	headNode := r.element[r.head]
+
+	return headNode, false
 }
 
 func (r *Mpsc) isEmpty() bool {
