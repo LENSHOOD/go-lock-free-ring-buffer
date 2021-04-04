@@ -12,6 +12,26 @@ type MySuite struct {}
 
 var _ = Suite(&MySuite{})
 
+func (s *MySuite) TestFindPowerOfTwo(c *C) {
+	// given
+	cap1 := uint64(0)
+	cap2 := uint64(10)
+	cap3 := uint64(16)
+	cap4 := ^uint64(0)
+
+	// when
+	res1 := findPowerOfTwo(cap1)
+	res2 := findPowerOfTwo(cap2)
+	res3 := findPowerOfTwo(cap3)
+	res4 := findPowerOfTwo(cap4)
+
+	// then
+	c.Assert(res1, Equals, uint64(0))
+	c.Assert(res2, Equals, uint64(16))
+	c.Assert(res3, Equals, uint64(16))
+	c.Assert(res4, Equals, uint64(1<<63))
+}
+
 func (s *MySuite) TestOfferAndPollSuccess(c *C) {
 	// given
 	fakeString := "fake"
@@ -30,12 +50,13 @@ func (s *MySuite) TestOfferFailedWhenFull(c *C) {
 	// given
 	capacity := 10
 	buffer := New(uint64(capacity)).(*Mpsc)
-	for i := 0; i < capacity; i++ {
+	realCapacity := findPowerOfTwo(uint64(capacity + 1))
+	for i := 0; i < int(realCapacity); i++ {
 		buffer.Offer(i)
 	}
 	c.Assert(buffer.isFull(), Equals, true)
 	c.Assert(buffer.head, Equals, uint64(0))
-	c.Assert(buffer.tail, Equals, uint64(10))
+	c.Assert(buffer.tail, Equals, uint64(0))
 
 	// when
 	offered := buffer.Offer(10)
@@ -65,34 +86,34 @@ func (s *MySuite) TestRingBufferShift(c *C) {
 	buffer := New(uint64(capacity)).(*Mpsc)
 
 	// when
-	for i := 0; i < 8; i++ {
+	for i := 0; i < 13; i++ {
 		buffer.Offer(i)
 	}
 
 	// then
 	c.Assert(buffer.head, Equals, uint64(0))
-	c.Assert(buffer.tail, Equals, uint64(9))
+	c.Assert(buffer.tail, Equals, uint64(14))
 
 	// when
-	buffer.Offer(9)
-	buffer.Offer(10)
+	buffer.Offer(14)
+	buffer.Offer(15)
 
 	// then
 	c.Assert(buffer.head, Equals, uint64(0))
-	c.Assert(buffer.tail, Equals, uint64(10))
-	c.Assert(buffer.isFull(), Equals, true)
-
-	// when
-	buffer.Poll()
-	buffer.Offer(11)
-
-	// then
-	c.Assert(buffer.head, Equals, uint64(1))
 	c.Assert(buffer.tail, Equals, uint64(0))
 	c.Assert(buffer.isFull(), Equals, true)
 
 	// when
-	for i := 0; i < 8; i++ {
+	buffer.Poll()
+	buffer.Offer(16)
+
+	// then
+	c.Assert(buffer.head, Equals, uint64(1))
+	c.Assert(buffer.tail, Equals, uint64(1))
+	c.Assert(buffer.isFull(), Equals, true)
+
+	// when
+	for i := 0; i < 14; i++ {
 		buffer.Poll()
 	}
 	buffer.Offer(12)
@@ -102,6 +123,6 @@ func (s *MySuite) TestRingBufferShift(c *C) {
 	buffer.Poll()
 
 	// then
-	c.Assert(buffer.head, Equals, uint64(0))
-	c.Assert(buffer.tail, Equals, uint64(3))
+	c.Assert(buffer.head, Equals, uint64(1))
+	c.Assert(buffer.tail, Equals, uint64(4))
 }
