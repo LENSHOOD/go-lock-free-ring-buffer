@@ -23,7 +23,7 @@ func New(capacity uint64) MpscRingBuffer {
 	return &Mpsc{
 		make([]interface{}, realCapacity),
 		0,
-		1,
+		0,
 		realCapacity,
 		realCapacity - 1,
 	}
@@ -55,8 +55,8 @@ func (r *Mpsc) Offer(node interface{}) bool {
 		return false
 	}
 
-	r.element[r.tail] = node
 	r.tail = (r.tail+1) & r.mask
+	r.element[r.tail] = node
 
 	return true
 }
@@ -73,9 +73,9 @@ func (r *Mpsc) Poll() (value interface{}, empty bool) {
 }
 
 func (r *Mpsc) isEmpty() bool {
-	return (r.tail - r.head) & r.mask == 1
+	return (r.tail - r.head) & r.mask == 0
 }
 
 func (r *Mpsc) isFull() bool {
-	return (r.head - r.tail)  & r.mask == 0
+	return (r.tail - r.head)  & r.mask == r.capacity - 1
 }
