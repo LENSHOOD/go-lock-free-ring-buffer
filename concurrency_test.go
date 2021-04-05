@@ -4,6 +4,7 @@ import (
 	. "gopkg.in/check.v1"
 	"strconv"
 	"sync"
+	"sync/atomic"
 )
 
 func (s *MySuite) TestConcurrencyRW(c *C) {
@@ -66,7 +67,7 @@ func (s *MySuite) TestConcurrencyRW(c *C) {
 	go offerPunctuation(buffer)
 
 	wg.Wait()
-	for !buffer.isEmpty() {}
+	for !buffer.isEmpty(atomic.LoadUint64(&buffer.tail), atomic.LoadUint64(&buffer.head)) {}
 	close(done)
 	finishWg.Wait()
 

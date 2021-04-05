@@ -30,12 +30,12 @@ func (s *MySuite) TestOfferAndPollSuccess(c *C) {
 	buffer := New(10)
 
 	// when
-	result := buffer.Offer(fakeString)
+	result := buffer.Offer(&fakeString)
 	poll, _ := buffer.Poll()
 
 	// then
 	c.Assert(result, Equals, true)
-	c.Assert(poll, Equals, fakeString)
+	c.Assert(poll, Equals, &fakeString)
 }
 
 func (s *MySuite) TestOfferFailedWhenFull(c *C) {
@@ -46,7 +46,7 @@ func (s *MySuite) TestOfferFailedWhenFull(c *C) {
 	for i := 0; i < int(realCapacity); i++ {
 		buffer.Offer(i)
 	}
-	c.Assert(buffer.isFull(), Equals, true)
+	c.Assert(buffer.isFull(buffer.tail, buffer.head), Equals, true)
 	c.Assert(buffer.head, Equals, uint64(0))
 	c.Assert(buffer.tail, Equals, uint64(15))
 
@@ -61,7 +61,7 @@ func (s *MySuite) TestPollFailedWhenEmpty(c *C) {
 	// given
 	capacity := 10
 	buffer := New(uint64(capacity)).(*Mpsc)
-	c.Assert(buffer.isEmpty(), Equals, true)
+	c.Assert(buffer.isEmpty(buffer.tail, buffer.head), Equals, true)
 	c.Assert(buffer.head, Equals, uint64(0))
 	c.Assert(buffer.tail, Equals, uint64(0))
 
@@ -93,7 +93,7 @@ func (s *MySuite) TestRingBufferShift(c *C) {
 	// then
 	c.Assert(buffer.head, Equals, uint64(0))
 	c.Assert(buffer.tail, Equals, uint64(15))
-	c.Assert(buffer.isFull(), Equals, true)
+	c.Assert(buffer.isFull(buffer.tail, buffer.head), Equals, true)
 
 	// when
 	buffer.Poll()
@@ -102,7 +102,7 @@ func (s *MySuite) TestRingBufferShift(c *C) {
 	// then
 	c.Assert(buffer.head, Equals, uint64(1))
 	c.Assert(buffer.tail, Equals, uint64(0))
-	c.Assert(buffer.isFull(), Equals, true)
+	c.Assert(buffer.isFull(buffer.tail, buffer.head), Equals, true)
 
 	// when
 	for i := 0; i < 14; i++ {

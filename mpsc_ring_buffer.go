@@ -1,5 +1,10 @@
 package go_mpsc_ring_buffer
 
+import (
+	"sync/atomic"
+	"unsafe"
+)
+
 type OfferStatus int
 
 type MpscRingBuffer interface {
@@ -50,32 +55,49 @@ func findPowerOfTwo(givenMum uint64) uint64 {
 	}
 }
 
-func (r *Mpsc) Offer(node interface{}) bool {
-	if r.isFull() {
+// Offer a value pointer.
+func (r *Mpsc) Offer(valuePointer interface{}) bool {
+	oldTail := atomic.LoadUint64(&r.tail)
+	oldHead := atomic.LoadUint64(&r.head)
+	if r.isFull(oldTail, oldHead) {
 		return false
 	}
 
-	r.tail = (r.tail+1) & r.mask
-	r.element[r.tail] = node
+	newTail := (oldTail+1) & r.mask
+	if !atomic.CompareAndSwapUint64(&r.tail, oldTail, newTail) {
+		return false
+	}
 
+	atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newTail])), unsafe.Pointer(&valuePointer))
 	return true
 }
 
-func (r *Mpsc) Poll() (value interface{}, empty bool) {
-	if r.isEmpty() {
+// Poll head value pointer.
+func (r *Mpsc) Poll() (valuePointer interface{}, empty bool) {
+	oldTail := atomic.LoadUint64(&r.tail)
+	oldHead := atomic.LoadUint64(&r.head)
+	if r.isEmpty(oldTail, oldHead) {
 		return nil, true
 	}
 
-	r.head = (r.head+1) & r.mask
-	headNode := r.element[r.head]
+	newHead := (oldHead+1) & r.mask
+	headNode := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newHead])))
+	// not published yet
+	if headNode == nil {
+		return nil, true
+	}
+	if !atomic.CompareAndSwapUint64(&r.head, oldHead, newHead) {
+		return nil, true
+	}
+	atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newHead])), nil)
 
-	return headNode, false
+	return *(*interface{})(headNode), false
 }
 
-func (r *Mpsc) isEmpty() bool {
-	return (r.tail - r.head) & r.mask == 0
+func (r *Mpsc) isEmpty(tail uint64, head uint64) bool {
+	return (tail - head) & r.mask == 0
 }
 
-func (r *Mpsc) isFull() bool {
-	return (r.tail - r.head)  & r.mask == r.capacity - 1
+func (r *Mpsc) isFull(tail uint64, head uint64) bool {
+	return (tail - head)  & r.mask == r.capacity - 1
 }
