@@ -63,12 +63,17 @@ func (r *Mpsc) Offer(valuePointer interface{}) bool {
 		return false
 	}
 
-	newTail := (oldTail+1) & r.mask
+	newTail := oldTail + 1
+	tailNode := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newTail & r.mask])))
+	// not published yet
+	if tailNode != nil {
+		return false
+	}
 	if !atomic.CompareAndSwapUint64(&r.tail, oldTail, newTail) {
 		return false
 	}
 
-	atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newTail])), unsafe.Pointer(&valuePointer))
+	atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newTail & r.mask])), unsafe.Pointer(&valuePointer))
 	return true
 }
 
@@ -80,8 +85,8 @@ func (r *Mpsc) Poll() (valuePointer interface{}, empty bool) {
 		return nil, true
 	}
 
-	newHead := (oldHead+1) & r.mask
-	headNode := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newHead])))
+	newHead := oldHead + 1
+	headNode := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newHead & r.mask])))
 	// not published yet
 	if headNode == nil {
 		return nil, true
@@ -89,15 +94,15 @@ func (r *Mpsc) Poll() (valuePointer interface{}, empty bool) {
 	if !atomic.CompareAndSwapUint64(&r.head, oldHead, newHead) {
 		return nil, true
 	}
-	atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newHead])), nil)
+	atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newHead & r.mask])), nil)
 
 	return *(*interface{})(headNode), false
 }
 
 func (r *Mpsc) isEmpty(tail uint64, head uint64) bool {
-	return (tail - head) & r.mask == 0
+	return tail - head == 0
 }
 
 func (r *Mpsc) isFull(tail uint64, head uint64) bool {
-	return (tail - head)  & r.mask == r.capacity - 1
+	return tail - head >= r.capacity - 1
 }

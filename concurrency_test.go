@@ -2,6 +2,7 @@ package go_mpsc_ring_buffer
 
 import (
 	. "gopkg.in/check.v1"
+	"runtime"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -67,7 +68,9 @@ func (s *MySuite) TestConcurrencyRW(c *C) {
 	go offerPunctuation(buffer)
 
 	wg.Wait()
-	for !buffer.isEmpty(atomic.LoadUint64(&buffer.tail), atomic.LoadUint64(&buffer.head)) {}
+	for !buffer.isEmpty(atomic.LoadUint64(&buffer.tail), atomic.LoadUint64(&buffer.head)) {
+		runtime.Gosched()
+	}
 	close(done)
 	finishWg.Wait()
 
