@@ -10,55 +10,58 @@ import (
 
 func (s *MySuite) TestConcurrencyRW(c *C) {
 	// given
+	source := initDataSource()
+
 	capacity := 4
 	buffer := New(uint64(capacity)).(*Mpsc)
 
 	var wg sync.WaitGroup
-
 	offerNumber := func(buffer MpscRingBuffer) {
 		defer wg.Done()
 		for i := 0; i < 8; i++ {
-			v := strconv.Itoa(i)
-			for !buffer.Offer(&v) {}
+			v := source[i]
+			for !buffer.Offer(&v) {
+			}
 		}
 	}
 
 	offerAlphabet := func(buffer MpscRingBuffer) {
 		defer wg.Done()
-		asciiStart := 65
 		for i := 0; i < 8; i++ {
-			v := string(rune(asciiStart))
-			asciiStart += 1
-			for !buffer.Offer(&v) {}
+			v := source[i+8]
+			for !buffer.Offer(&v) {
+			}
 		}
 	}
 
 	offerPunctuation := func(buffer MpscRingBuffer) {
 		defer wg.Done()
-		asciiStart := 33
 		for i := 0; i < 8; i++ {
-			v := string(rune(asciiStart))
-			asciiStart += 1
-			for !buffer.Offer(&v) {}
+			v := source[i+16]
+			for !buffer.Offer(&v) {
+			}
 		}
 	}
 
-	resultSet := make(map[interface{}]bool)
+	resultArr := make([]interface{}, 24)
 	var finishWg sync.WaitGroup
 	consumer := func(buffer MpscRingBuffer, ch chan struct{}) {
+		counter := 0
 		finishWg.Add(1)
-		for  {
+		for {
 			select {
-			case <- ch:
+			case <-ch:
 				finishWg.Done()
 				return
 			default:
 				if poll, empty := buffer.Poll(); !empty {
-					resultSet[*(poll.(*string))] = true
+					resultArr[counter] = poll
+					counter++
 				}
 			}
 		}
 	}
+
 	// when
 	done := make(chan struct{})
 	wg.Add(3)
@@ -75,5 +78,27 @@ func (s *MySuite) TestConcurrencyRW(c *C) {
 	finishWg.Wait()
 
 	// then
-	c.Assert(len(resultSet), Equals, 24)
+	countSet := make(map[interface{}]bool)
+	for i := 0; i < len(resultArr); i++ {
+		if resultArr[i] != nil {
+			countSet[resultArr[i]] = true
+		}
+	}
+	c.Assert(len(countSet), Equals, 24)
+}
+
+func initDataSource() []string {
+	sourceArray := make([]string, 24)
+	for i := 0; i < 24; i++ {
+		var v string
+		if i < 8 {
+			v = strconv.Itoa(i)
+		} else if i >= 8 && i < 16 {
+			v = string(rune(65 + i - 8))
+		} else {
+			v = string(rune(33 + i - 16))
+		}
+		sourceArray[i] = v
+	}
+	return sourceArray
 }
