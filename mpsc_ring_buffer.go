@@ -24,7 +24,7 @@ type Mpsc struct {
 // the array capacity should add extra one because ring buffer always leave one slot empty
 // expand capacity as power-of-two, to make head/tail calculate faster and simpler
 func New(capacity uint64) MpscRingBuffer {
-	realCapacity := findPowerOfTwo(capacity + 1)
+	realCapacity := findPowerOfTwo(capacity)
 	return &Mpsc{
 		make([]interface{}, realCapacity),
 		0,
@@ -34,25 +34,21 @@ func New(capacity uint64) MpscRingBuffer {
 	}
 }
 
+// findPowerOfTwo return the input number as round up to it's power of two
+// The algorithm only care about the MSB of (givenNum -1), through the below procedure,
+// the MSB will be spread to all lower bit than MSB. At last do (givenNum + 1) we
+// can get power of two form of givenNum.
 func findPowerOfTwo(givenMum uint64) uint64 {
-	if givenMum == 0 {
-		return 0
-	}
+	givenMum--
+	givenMum |= givenMum >> 1
+	givenMum |= givenMum >> 2
+	givenMum |= givenMum >> 4
+	givenMum |= givenMum >> 8
+	givenMum |= givenMum >> 16
+	givenMum |= givenMum >> 32
+	givenMum++
 
-	var bottom uint64 = 0
-	var top uint64 = 63
-	for {
-		if top-bottom <= 1 {
-			return 1 << top
-		}
-
-		mid := (top - bottom) / 2
-		if givenMum > (1 << (bottom + mid)) {
-			bottom = bottom + mid
-		} else {
-			top = bottom + mid
-		}
-	}
+	return givenMum
 }
 
 // Offer a value pointer.

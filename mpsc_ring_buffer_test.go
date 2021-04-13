@@ -9,19 +9,22 @@ func (s *MySuite) TestFindPowerOfTwo(c *C) {
 	cap1 := uint64(0)
 	cap2 := uint64(10)
 	cap3 := uint64(16)
-	cap4 := ^uint64(0)
+	cap4 := uint64(33)
+	cap5 := ^uint64(0)
 
 	// when
 	res1 := findPowerOfTwo(cap1)
 	res2 := findPowerOfTwo(cap2)
 	res3 := findPowerOfTwo(cap3)
 	res4 := findPowerOfTwo(cap4)
+	res5 := findPowerOfTwo(cap5)
 
 	// then
 	c.Assert(res1, Equals, uint64(0))
 	c.Assert(res2, Equals, uint64(16))
 	c.Assert(res3, Equals, uint64(16))
-	c.Assert(res4, Equals, uint64(1<<63))
+	c.Assert(res4, Equals, uint64(64))
+	c.Assert(res5, Equals, uint64(0))
 }
 
 func (s *MySuite) TestOfferAndPollSuccess(c *C) {
@@ -100,8 +103,8 @@ func (s *MySuite) TestRingBufferShift(c *C) {
 	buffer.Offer(16)
 
 	// then
-	c.Assert(buffer.head, Equals, uint64(1))
-	c.Assert(buffer.tail, Equals, uint64(0))
+	c.Assert(buffer.head & buffer.mask, Equals, uint64(1))
+	c.Assert(buffer.tail & buffer.mask, Equals, uint64(0))
 	c.Assert(buffer.isFull(buffer.tail, buffer.head), Equals, true)
 
 	// when
@@ -115,6 +118,6 @@ func (s *MySuite) TestRingBufferShift(c *C) {
 	buffer.Poll()
 
 	// then
-	c.Assert(buffer.head, Equals, uint64(1))
-	c.Assert(buffer.tail, Equals, uint64(3))
+	c.Assert(buffer.head & buffer.mask, Equals, uint64(1))
+	c.Assert(buffer.tail & buffer.mask, Equals, uint64(3))
 }
