@@ -99,6 +99,16 @@ func (r *Mpsc) isEmpty(tail uint64, head uint64) bool {
 	return tail - head == 0
 }
 
+// isFull check whether buffer is full by compare (tail - head).
+// Because of none-sync read of tail and head, the tail maybe smaller than head(which is
+// never happened in the view of buffer):
+//
+// Say if the thread read tail=4 at time point one (in this time head=3), then wait to
+// get scheduled, after a long wait, at time point two (in this time tail=8), the thread
+// read head=7. So at the view in the thread, tail=4 and head=7.
+//
+// Hence, once tail < head means the tail is far behind the real (which means CAS-tail will
+// definitely fail), so we just return full to the Offer caller let it try again.
 func (r *Mpsc) isFull(tail uint64, head uint64) bool {
 	return tail - head >= r.capacity - 1
 }
