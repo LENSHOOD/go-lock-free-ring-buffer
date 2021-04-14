@@ -30,7 +30,7 @@ func (s *MySuite) TestFindPowerOfTwo(c *C) {
 func (s *MySuite) TestOfferAndPollSuccess(c *C) {
 	// given
 	fakeString := "fake"
-	buffer := New(10)
+	buffer := New(MPSC, 10)
 
 	// when
 	result := buffer.Offer(&fakeString)
@@ -44,7 +44,7 @@ func (s *MySuite) TestOfferAndPollSuccess(c *C) {
 func (s *MySuite) TestOfferFailedWhenFull(c *C) {
 	// given
 	capacity := 10
-	buffer := New(uint64(capacity)).(*Mpsc)
+	buffer := New(MPSC, uint64(capacity)).(*Mpsc)
 	realCapacity := findPowerOfTwo(uint64(capacity + 1))
 	for i := 0; i < int(realCapacity); i++ {
 		buffer.Offer(i)
@@ -63,7 +63,7 @@ func (s *MySuite) TestOfferFailedWhenFull(c *C) {
 func (s *MySuite) TestPollFailedWhenEmpty(c *C) {
 	// given
 	capacity := 10
-	buffer := New(uint64(capacity)).(*Mpsc)
+	buffer := New(MPSC, uint64(capacity)).(*Mpsc)
 	c.Assert(buffer.isEmpty(buffer.tail, buffer.head), Equals, true)
 	c.Assert(buffer.head, Equals, uint64(0))
 	c.Assert(buffer.tail, Equals, uint64(0))
@@ -78,7 +78,7 @@ func (s *MySuite) TestPollFailedWhenEmpty(c *C) {
 func (s *MySuite) TestRingBufferShift(c *C) {
 	// given
 	capacity := 10
-	buffer := New(uint64(capacity)).(*Mpsc)
+	buffer := New(MPSC, uint64(capacity)).(*Mpsc)
 
 	// when
 	for i := 0; i < 13; i++ {

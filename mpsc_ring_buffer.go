@@ -5,8 +5,6 @@ import (
 	"unsafe"
 )
 
-type OfferStatus int
-
 type MpscRingBuffer interface {
 	Offer(interface{}) bool
 	Poll() (value interface{}, empty bool)
@@ -18,20 +16,6 @@ type Mpsc struct {
 	tail uint64
 	capacity uint64
 	mask uint64
-}
-
-// New MpscRingBuffer with Mpsc.
-// the array capacity should add extra one because ring buffer always leave one slot empty
-// expand capacity as power-of-two, to make head/tail calculate faster and simpler
-func New(capacity uint64) MpscRingBuffer {
-	realCapacity := findPowerOfTwo(capacity)
-	return &Mpsc{
-		make([]interface{}, realCapacity),
-		0,
-		0,
-		realCapacity,
-		realCapacity - 1,
-	}
 }
 
 // findPowerOfTwo return the input number as round up to it's power of two
