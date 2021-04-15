@@ -12,7 +12,7 @@ func (s *MySuite) TestMPMCConcurrencyRW(c *C) {
 	source := initDataSource()
 
 	capacity := 4
-	buffer := New(MPSC, uint64(capacity)).(*Mpsc)
+	buffer := New(MPMC, uint64(capacity)).(*mpmc)
 
 	var wg sync.WaitGroup
 	offerNumber := func(buffer RingBuffer) {
@@ -75,7 +75,7 @@ func (s *MySuite) TestMPMCConcurrencyRW(c *C) {
 	go offerPunctuation(buffer)
 
 	wg.Wait()
-	for !buffer.isEmpty(atomic.LoadUint64(&buffer.tail), atomic.LoadUint64(&buffer.head)) {
+	for atomic.LoadUint64(&buffer.head) < 24 {
 		runtime.Gosched()
 	}
 	close(done)

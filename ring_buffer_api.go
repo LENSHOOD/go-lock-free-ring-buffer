@@ -20,6 +20,8 @@ func New(t BufferType, capacity uint64) RingBuffer {
 	realCapacity := findPowerOfTwo(capacity)
 
 	switch t {
+	case MPMC:
+		return newMpmc(realCapacity)
 	case MPSC:
 		return &Mpsc{
 			make([]interface{}, realCapacity),
