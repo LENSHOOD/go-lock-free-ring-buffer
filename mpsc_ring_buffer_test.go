@@ -27,97 +27,107 @@ func (s *MySuite) TestFindPowerOfTwo(c *C) {
 	c.Assert(res5, Equals, uint64(0))
 }
 
+var bufferSet = []BufferType {MPSC}
+
 func (s *MySuite) TestOfferAndPollSuccess(c *C) {
-	// given
-	fakeString := "fake"
-	buffer := New(MPSC, 10)
+	for _, t := range bufferSet {
+		// given
+		fakeString := "fake"
+		buffer := New(t, 10)
 
-	// when
-	result := buffer.Offer(&fakeString)
-	poll, _ := buffer.Poll()
+		// when
+		result := buffer.Offer(&fakeString)
+		poll, _ := buffer.Poll()
 
-	// then
-	c.Assert(result, Equals, true)
-	c.Assert(poll, Equals, &fakeString)
+		// then
+		c.Assert(result, Equals, true)
+		c.Assert(poll, Equals, &fakeString)
+	}
 }
 
 func (s *MySuite) TestOfferFailedWhenFull(c *C) {
-	// given
-	capacity := 10
-	buffer := New(MPSC, uint64(capacity)).(*Mpsc)
-	realCapacity := findPowerOfTwo(uint64(capacity + 1))
-	for i := 0; i < int(realCapacity); i++ {
-		buffer.Offer(i)
+	for _, t := range bufferSet {
+		// given
+		capacity := 10
+		buffer := New(t, uint64(capacity)).(*Mpsc)
+		realCapacity := findPowerOfTwo(uint64(capacity + 1))
+		for i := 0; i < int(realCapacity); i++ {
+			buffer.Offer(i)
+		}
+		c.Assert(buffer.isFull(buffer.tail, buffer.head), Equals, true)
+		c.Assert(buffer.head, Equals, uint64(0))
+		c.Assert(buffer.tail, Equals, uint64(15))
+
+		// when
+		offered := buffer.Offer(10)
+
+		// then
+		c.Assert(offered, Equals, false)
 	}
-	c.Assert(buffer.isFull(buffer.tail, buffer.head), Equals, true)
-	c.Assert(buffer.head, Equals, uint64(0))
-	c.Assert(buffer.tail, Equals, uint64(15))
-
-	// when
-	offered := buffer.Offer(10)
-
-	// then
-	c.Assert(offered, Equals, false)
 }
 
 func (s *MySuite) TestPollFailedWhenEmpty(c *C) {
-	// given
-	capacity := 10
-	buffer := New(MPSC, uint64(capacity)).(*Mpsc)
-	c.Assert(buffer.isEmpty(buffer.tail, buffer.head), Equals, true)
-	c.Assert(buffer.head, Equals, uint64(0))
-	c.Assert(buffer.tail, Equals, uint64(0))
+	for _, t := range bufferSet {
+		// given
+		capacity := 10
+		buffer := New(t, uint64(capacity)).(*Mpsc)
+		c.Assert(buffer.isEmpty(buffer.tail, buffer.head), Equals, true)
+		c.Assert(buffer.head, Equals, uint64(0))
+		c.Assert(buffer.tail, Equals, uint64(0))
 
-	// when
-	_, empty := buffer.Poll()
+		// when
+		_, empty := buffer.Poll()
 
-	// then
-	c.Assert(empty, Equals, true)
+		// then
+		c.Assert(empty, Equals, true)
+	}
 }
 
 func (s *MySuite) TestRingBufferShift(c *C) {
-	// given
-	capacity := 10
-	buffer := New(MPSC, uint64(capacity)).(*Mpsc)
+	for _, t := range bufferSet {
+		// given
+		capacity := 10
+		buffer := New(t, uint64(capacity)).(*Mpsc)
 
-	// when
-	for i := 0; i < 13; i++ {
-		buffer.Offer(i)
-	}
+		// when
+		for i := 0; i < 13; i++ {
+			buffer.Offer(i)
+		}
 
-	// then
-	c.Assert(buffer.head, Equals, uint64(0))
-	c.Assert(buffer.tail, Equals, uint64(13))
+		// then
+		c.Assert(buffer.head, Equals, uint64(0))
+		c.Assert(buffer.tail, Equals, uint64(13))
 
-	// when
-	buffer.Offer(14)
-	buffer.Offer(15)
+		// when
+		buffer.Offer(14)
+		buffer.Offer(15)
 
-	// then
-	c.Assert(buffer.head, Equals, uint64(0))
-	c.Assert(buffer.tail, Equals, uint64(15))
-	c.Assert(buffer.isFull(buffer.tail, buffer.head), Equals, true)
+		// then
+		c.Assert(buffer.head, Equals, uint64(0))
+		c.Assert(buffer.tail, Equals, uint64(15))
+		c.Assert(buffer.isFull(buffer.tail, buffer.head), Equals, true)
 
-	// when
-	buffer.Poll()
-	buffer.Offer(16)
-
-	// then
-	c.Assert(buffer.head & buffer.mask, Equals, uint64(1))
-	c.Assert(buffer.tail & buffer.mask, Equals, uint64(0))
-	c.Assert(buffer.isFull(buffer.tail, buffer.head), Equals, true)
-
-	// when
-	for i := 0; i < 14; i++ {
+		// when
 		buffer.Poll()
-	}
-	buffer.Offer(12)
-	buffer.Offer(13)
-	buffer.Offer(14)
-	buffer.Poll()
-	buffer.Poll()
+		buffer.Offer(16)
 
-	// then
-	c.Assert(buffer.head & buffer.mask, Equals, uint64(1))
-	c.Assert(buffer.tail & buffer.mask, Equals, uint64(3))
+		// then
+		c.Assert(buffer.head & buffer.mask, Equals, uint64(1))
+		c.Assert(buffer.tail & buffer.mask, Equals, uint64(0))
+		c.Assert(buffer.isFull(buffer.tail, buffer.head), Equals, true)
+
+		// when
+		for i := 0; i < 14; i++ {
+			buffer.Poll()
+		}
+		buffer.Offer(12)
+		buffer.Offer(13)
+		buffer.Offer(14)
+		buffer.Poll()
+		buffer.Poll()
+
+		// then
+		c.Assert(buffer.head & buffer.mask, Equals, uint64(1))
+		c.Assert(buffer.tail & buffer.mask, Equals, uint64(3))
+	}
 }

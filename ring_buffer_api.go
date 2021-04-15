@@ -16,7 +16,7 @@ const (
 // New RingBuffer with BufferType.
 // The array capacity should add extra one because ring buffer always left one slot empty.
 // Expand capacity as power-of-two, to make head/tail calculate faster and simpler
-func New(t BufferType, capacity uint64) MpscRingBuffer {
+func New(t BufferType, capacity uint64) RingBuffer {
 	realCapacity := findPowerOfTwo(capacity)
 
 	switch t {

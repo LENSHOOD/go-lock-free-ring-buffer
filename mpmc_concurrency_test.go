@@ -15,7 +15,7 @@ func (s *MySuite) TestMPMCConcurrencyRW(c *C) {
 	buffer := New(MPSC, uint64(capacity)).(*Mpsc)
 
 	var wg sync.WaitGroup
-	offerNumber := func(buffer MpscRingBuffer) {
+	offerNumber := func(buffer RingBuffer) {
 		defer wg.Done()
 		for i := 0; i < 8; i++ {
 			v := source[i]
@@ -24,7 +24,7 @@ func (s *MySuite) TestMPMCConcurrencyRW(c *C) {
 		}
 	}
 
-	offerAlphabet := func(buffer MpscRingBuffer) {
+	offerAlphabet := func(buffer RingBuffer) {
 		defer wg.Done()
 		for i := 0; i < 8; i++ {
 			v := source[i+8]
@@ -33,7 +33,7 @@ func (s *MySuite) TestMPMCConcurrencyRW(c *C) {
 		}
 	}
 
-	offerPunctuation := func(buffer MpscRingBuffer) {
+	offerPunctuation := func(buffer RingBuffer) {
 		defer wg.Done()
 		for i := 0; i < 8; i++ {
 			v := source[i+16]
@@ -43,7 +43,7 @@ func (s *MySuite) TestMPMCConcurrencyRW(c *C) {
 	}
 
 	var finishWg sync.WaitGroup
-	consumer := func(buffer MpscRingBuffer, ch chan struct{}, outputArr []interface{}) {
+	consumer := func(buffer RingBuffer, ch chan struct{}, outputArr []interface{}) {
 		counter := 0
 		for {
 			select {
