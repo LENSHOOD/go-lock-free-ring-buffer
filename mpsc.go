@@ -5,16 +5,24 @@ import (
 	"unsafe"
 )
 
-type Mpsc struct {
+type mpsc struct {
 	element []interface{}
-	head uint64
-	tail uint64
-	capacity uint64
-	mask uint64
+	ringBufferBasement
+}
+
+func newMpsc(capacity uint64) RingBuffer {
+	return &mpsc{
+		make([]interface{}, capacity),
+		ringBufferBasement{uint64(0),
+			uint64(0),
+			capacity,
+			capacity - 1,
+		},
+	}
 }
 
 // Offer a value pointer.
-func (r *Mpsc) Offer(valuePointer interface{}) bool {
+func (r *mpsc) Offer(value interface{}) (success bool) {
 	oldTail := atomic.LoadUint64(&r.tail)
 	oldHead := atomic.LoadUint64(&r.head)
 	if r.isFull(oldTail, oldHead) {
@@ -31,33 +39,33 @@ func (r *Mpsc) Offer(valuePointer interface{}) bool {
 		return false
 	}
 
-	atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newTail & r.mask])), unsafe.Pointer(&valuePointer))
+	atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newTail & r.mask])), unsafe.Pointer(&value))
 	return true
 }
 
 // Poll head value pointer.
-func (r *Mpsc) Poll() (valuePointer interface{}, empty bool) {
+func (r *mpsc) Poll() (value interface{}, success bool) {
 	oldTail := atomic.LoadUint64(&r.tail)
 	oldHead := atomic.LoadUint64(&r.head)
 	if r.isEmpty(oldTail, oldHead) {
-		return nil, true
+		return nil, false
 	}
 
 	newHead := oldHead + 1
 	headNode := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newHead & r.mask])))
 	// not published yet
 	if headNode == nil {
-		return nil, true
+		return nil, false
 	}
 	if !atomic.CompareAndSwapUint64(&r.head, oldHead, newHead) {
 		return nil, true
 	}
 	atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newHead & r.mask])), nil)
 
-	return *(*interface{})(headNode), false
+	return *(*interface{})(headNode), true
 }
 
-func (r *Mpsc) isEmpty(tail uint64, head uint64) bool {
+func (r *mpsc) isEmpty(tail uint64, head uint64) bool {
 	return tail - head == 0
 }
 
@@ -71,6 +79,6 @@ func (r *Mpsc) isEmpty(tail uint64, head uint64) bool {
 //
 // Hence, once tail < head means the tail is far behind the real (which means CAS-tail will
 // definitely fail), so we just return full to the Offer caller let it try again.
-func (r *Mpsc) isFull(tail uint64, head uint64) bool {
+func (r *mpsc) isFull(tail uint64, head uint64) bool {
 	return tail - head >= r.capacity - 1
 }

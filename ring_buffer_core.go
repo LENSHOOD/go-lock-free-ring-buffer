@@ -16,3 +16,10 @@ func findPowerOfTwo(givenMum uint64) uint64 {
 
 	return givenMum
 }
+
+type ringBufferBasement struct {
+	head uint64
+	tail uint64
+	capacity uint64
+	mask uint64
+}

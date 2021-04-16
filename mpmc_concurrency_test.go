@@ -51,7 +51,7 @@ func (s *MySuite) TestMPMCConcurrencyRW(c *C) {
 				finishWg.Done()
 				return
 			default:
-				if poll, empty := buffer.Poll(); !empty {
+				if poll, success := buffer.Poll(); success {
 					outputArr[counter] = poll
 					counter++
 				}

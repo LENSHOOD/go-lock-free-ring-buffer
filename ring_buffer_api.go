@@ -1,8 +1,8 @@
 package go_mpsc_ring_buffer
 
 type RingBuffer interface {
-	Offer(interface{}) bool
-	Poll() (value interface{}, empty bool)
+	Offer(interface{}) (success bool)
+	Poll() (value interface{}, success bool)
 }
 
 type BufferType int
@@ -23,13 +23,7 @@ func New(t BufferType, capacity uint64) RingBuffer {
 	case MPMC:
 		return newMpmc(realCapacity)
 	case MPSC:
-		return &Mpsc{
-			make([]interface{}, realCapacity),
-			0,
-			0,
-			realCapacity,
-			realCapacity - 1,
-		}
+		return newMpsc(realCapacity)
 	default:
 		panic("shouldn't goes here.")
 	}

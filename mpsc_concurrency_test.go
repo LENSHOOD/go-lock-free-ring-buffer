@@ -13,7 +13,7 @@ func (s *MySuite) TestMPSCConcurrencyRW(c *C) {
 	source := initDataSource()
 
 	capacity := 4
-	buffer := New(MPSC, uint64(capacity)).(*Mpsc)
+	buffer := New(MPSC, uint64(capacity)).(*mpsc)
 
 	var wg sync.WaitGroup
 	offerNumber := func(buffer RingBuffer) {
@@ -54,7 +54,7 @@ func (s *MySuite) TestMPSCConcurrencyRW(c *C) {
 				finishWg.Done()
 				return
 			default:
-				if poll, empty := buffer.Poll(); !empty {
+				if poll, success := buffer.Poll(); success {
 					resultArr[counter] = poll
 					counter++
 				}

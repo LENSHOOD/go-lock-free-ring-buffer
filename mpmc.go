@@ -41,10 +41,7 @@ type node struct {
 // pass the node.step check.
 type mpmc struct {
 	element []*node
-	head uint64
-	tail uint64
-	capacity uint64
-	mask uint64
+	ringBufferBasement
 }
 
 func newMpmc(capacity uint64) RingBuffer {
@@ -55,15 +52,16 @@ func newMpmc(capacity uint64) RingBuffer {
 
 	return &mpmc{
 		nodes,
-		uint64(0),
+		ringBufferBasement{uint64(0),
 		uint64(0),
 		capacity,
 		capacity - 1,
+		},
 	}
 }
 
 // Offer a value pointer.
-func (r *mpmc) Offer(valuePointer interface{}) bool {
+func (r *mpmc) Offer(value interface{}) (success bool) {
 	oldTail := atomic.LoadUint64(&r.tail)
 	tailNode := r.element[oldTail & r.mask]
 	oldStep := atomic.LoadUint64(&tailNode.step)
@@ -76,26 +74,26 @@ func (r *mpmc) Offer(valuePointer interface{}) bool {
 		return false
 	}
 
-	atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&tailNode.value)), unsafe.Pointer(&valuePointer))
+	atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&tailNode.value)), unsafe.Pointer(&value))
 	atomic.StoreUint64(&tailNode.step, tailNode.step + 1)
 	return true
 }
 
 // Poll head value pointer.
-func (r *mpmc) Poll() (valuePointer interface{}, empty bool) {
+func (r *mpmc) Poll() (value interface{}, success bool) {
 	oldHead := atomic.LoadUint64(&r.head)
 	headNode := r.element[oldHead & r.mask]
 	oldStep := atomic.LoadUint64(&headNode.step)
 	// not published yet
 	if oldStep != oldHead + 1 {
-		return nil, true
+		return nil, false
 	}
 
 	if !atomic.CompareAndSwapUint64(&r.head, oldHead, oldHead + 1) {
-		return nil, true
+		return nil, false
 	}
 
-	returnedValue := *(*interface{})(atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&headNode.value))))
+	value = *(*interface{})(atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&headNode.value))))
 	atomic.StoreUint64(&headNode.step, oldStep + r.mask)
-	return returnedValue, false
+	return value, true
 }
