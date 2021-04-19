@@ -6,18 +6,18 @@ import (
 )
 
 type mpsc struct {
-	element []interface{}
 	ringBufferBasement
+	element []interface{}
 }
 
 func newMpsc(capacity uint64) RingBuffer {
 	return &mpsc{
-		make([]interface{}, capacity),
-		ringBufferBasement{uint64(0),
-			uint64(0),
-			capacity,
-			capacity - 1,
+		ringBufferBasement{head: uint64(0),
+			tail: uint64(0),
+			capacity: capacity,
+			mask: capacity - 1,
 		},
+		make([]interface{}, capacity),
 	}
 }
 

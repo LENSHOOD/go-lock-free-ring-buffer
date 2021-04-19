@@ -8,6 +8,26 @@ import (
 	"testing"
 )
 
+func BenchmarkMPMC(b *testing.B) {
+	mpmcRB := New(MPMC, 16)
+	baseBenchmark(b, mpmcRB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0) / 2)
+}
+
+func BenchmarkChannelMPMC(b *testing.B) {
+	fakeB := newFakeBuffer(16)
+	baseBenchmark(b, fakeB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0) / 2)
+}
+
+func BenchmarkMPSC(b *testing.B) {
+	mpscRB := New(MPSC, 16)
+	baseBenchmark(b, mpscRB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0) - 1)
+}
+
+func BenchmarkChannelMPSC(b *testing.B) {
+	fakeB := newFakeBuffer(16)
+	baseBenchmark(b, fakeB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0) - 1)
+}
+
 func setup() []int {
 	ints := make([]int, 64)
 	for i := 0; i < len(ints); i++ {
@@ -85,25 +105,4 @@ func baseBenchmark(b *testing.B, buffer RingBuffer, threadCount int, trueCount i
 
 	b.StopTimer()
 	b.Logf("Success handover count: %d", counter)
-}
-
-
-func BenchmarkMPMC(b *testing.B) {
-	mpmcRB := New(MPMC, 16)
-	baseBenchmark(b, mpmcRB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0) / 2)
-}
-
-func BenchmarkChannelMPMC(b *testing.B) {
-	fakeB := newFakeBuffer(16)
-	baseBenchmark(b, fakeB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0) / 2)
-}
-
-func BenchmarkMPSC(b *testing.B) {
-	mpscRB := New(MPSC, 16)
-	baseBenchmark(b, mpscRB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0) - 1)
-}
-
-func BenchmarkChannelMPSC(b *testing.B) {
-	fakeB := newFakeBuffer(16)
-	baseBenchmark(b, fakeB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0) - 1)
 }

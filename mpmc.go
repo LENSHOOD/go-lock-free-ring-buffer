@@ -40,8 +40,8 @@ type node struct {
 // to check the buffer status, if buffer full / empty will lead the producer / consumer never
 // pass the node.step check.
 type mpmc struct {
-	element []*node
 	ringBufferBasement
+	element []*node
 }
 
 func newMpmc(capacity uint64) RingBuffer {
@@ -51,12 +51,12 @@ func newMpmc(capacity uint64) RingBuffer {
 	}
 
 	return &mpmc{
-		nodes,
-		ringBufferBasement{uint64(0),
-		uint64(0),
-		capacity,
-		capacity - 1,
+		ringBufferBasement{head: uint64(0),
+			tail: uint64(0),
+			capacity: capacity,
+			mask: capacity - 1,
 		},
+		nodes,
 	}
 }
 

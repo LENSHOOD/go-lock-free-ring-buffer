@@ -19,7 +19,11 @@ func findPowerOfTwo(givenMum uint64) uint64 {
 
 type ringBufferBasement struct {
 	head uint64
+	_padding0 [8]uint64
 	tail uint64
+	_padding1 [8]uint64
 	capacity uint64
+	_padding2 [8]uint64
 	mask uint64
+	_padding3 [8]uint64
 }
