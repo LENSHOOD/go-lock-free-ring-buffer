@@ -5,13 +5,13 @@ import (
 	"unsafe"
 )
 
-type mpsc struct {
+type hybrid struct {
 	ringBufferBasement
 	element []interface{}
 }
 
-func newMpsc(capacity uint64) RingBuffer {
-	return &mpsc{
+func newHybrid(capacity uint64) RingBuffer {
+	return &hybrid{
 		ringBufferBasement{head: uint64(0),
 			tail: uint64(0),
 			capacity: capacity,
@@ -22,7 +22,7 @@ func newMpsc(capacity uint64) RingBuffer {
 }
 
 // Offer a value pointer.
-func (r *mpsc) Offer(value interface{}) (success bool) {
+func (r *hybrid) Offer(value interface{}) (success bool) {
 	oldTail := atomic.LoadUint64(&r.tail)
 	oldHead := atomic.LoadUint64(&r.head)
 	if r.isFull(oldTail, oldHead) {
@@ -44,7 +44,7 @@ func (r *mpsc) Offer(value interface{}) (success bool) {
 }
 
 // Poll head value pointer.
-func (r *mpsc) Poll() (value interface{}, success bool) {
+func (r *hybrid) Poll() (value interface{}, success bool) {
 	oldTail := atomic.LoadUint64(&r.tail)
 	oldHead := atomic.LoadUint64(&r.head)
 	if r.isEmpty(oldTail, oldHead) {
@@ -65,10 +65,6 @@ func (r *mpsc) Poll() (value interface{}, success bool) {
 	return *(*interface{})(headNode), true
 }
 
-func (r *mpsc) isEmpty(tail uint64, head uint64) bool {
-	return tail - head == 0
-}
-
 // isFull check whether buffer is full by compare (tail - head).
 // Because of none-sync read of tail and head, the tail maybe smaller than head(which is
 // never happened in the view of buffer):
@@ -79,6 +75,21 @@ func (r *mpsc) isEmpty(tail uint64, head uint64) bool {
 //
 // Hence, once tail < head means the tail is far behind the real (which means CAS-tail will
 // definitely fail), so we just return full to the Offer caller let it try again.
-func (r *mpsc) isFull(tail uint64, head uint64) bool {
+func (r *hybrid) isFull(tail uint64, head uint64) bool {
 	return tail - head >= r.capacity - 1
+}
+
+// isEmpty check whether buffer is empty by compare (tail - head).
+// Same as isFull, the tail also may be smaller than head at thread view, which can be lead
+// to wrong result:
+//
+// consider consumer c1 get tail=3 head=5, but actually the latest tail=5
+// (means buffer empty), if we continue Poll, the dirty value can be fetched, maybe nil -
+// which is harmless, maybe old value that have not been set to nil yet (by last consumer)
+// - which is fatal.
+//
+// To keep the correctness of ring buffer, we need to return true when tail < head and
+// tail == head.
+func (r *hybrid) isEmpty(tail uint64, head uint64) bool {
+	return (tail < head) || (tail - head == 0)
 }

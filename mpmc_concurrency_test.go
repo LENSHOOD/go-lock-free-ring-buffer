@@ -7,12 +7,24 @@ import (
 	"sync/atomic"
 )
 
-func (s *MySuite) TestMPMCConcurrencyRW(c *C) {
+func (s *MySuite) TestNodeMpmcConcurrencyRW(c *C) {
+	concurrencyRW(c, MPMC, func(buffer RingBuffer) uint64 {
+		return atomic.LoadUint64(&buffer.(*mpmc).head)
+	})
+}
+
+func (s *MySuite) TestHybridMpmcConcurrencyRW(c *C) {
+	concurrencyRW(c, Hybrid, func(buffer RingBuffer) uint64 {
+		return atomic.LoadUint64(&buffer.(*hybrid).head)
+	})
+}
+
+func concurrencyRW(c *C, t BufferType, getHead func(buffer RingBuffer) uint64) {
 	// given
 	source := initDataSource()
 
 	capacity := 4
-	buffer := New(MPMC, uint64(capacity)).(*mpmc)
+	buffer := New(t, uint64(capacity))
 
 	var wg sync.WaitGroup
 	offerNumber := func(buffer RingBuffer) {
@@ -75,7 +87,7 @@ func (s *MySuite) TestMPMCConcurrencyRW(c *C) {
 	go offerPunctuation(buffer)
 
 	wg.Wait()
-	for atomic.LoadUint64(&buffer.head) < 24 {
+	for getHead(buffer) < 24 {
 		runtime.Gosched()
 	}
 	close(done)

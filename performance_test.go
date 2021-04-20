@@ -8,24 +8,19 @@ import (
 	"testing"
 )
 
-func BenchmarkMPMC(b *testing.B) {
+func BenchmarkNodeMPMC(b *testing.B) {
 	mpmcRB := New(MPMC, 16)
 	baseBenchmark(b, mpmcRB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0) / 2)
+}
+
+func BenchmarkHybridMPMC(b *testing.B) {
+	mpscRB := New(Hybrid, 16)
+	baseBenchmark(b, mpscRB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0) - 1)
 }
 
 func BenchmarkChannelMPMC(b *testing.B) {
 	fakeB := newFakeBuffer(16)
 	baseBenchmark(b, fakeB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0) / 2)
-}
-
-func BenchmarkMPSC(b *testing.B) {
-	mpscRB := New(MPSC, 16)
-	baseBenchmark(b, mpscRB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0) - 1)
-}
-
-func BenchmarkChannelMPSC(b *testing.B) {
-	fakeB := newFakeBuffer(16)
-	baseBenchmark(b, fakeB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0) - 1)
 }
 
 func setup() []int {

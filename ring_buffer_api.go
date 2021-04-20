@@ -8,9 +8,7 @@ type RingBuffer interface {
 type BufferType int
 const (
 	MPMC BufferType = iota
-	MPSC
-	SPMC
-	SPSC
+	Hybrid
 )
 
 // New RingBuffer with BufferType.
@@ -22,8 +20,8 @@ func New(t BufferType, capacity uint64) RingBuffer {
 	switch t {
 	case MPMC:
 		return newMpmc(realCapacity)
-	case MPSC:
-		return newMpsc(realCapacity)
+	case Hybrid:
+		return newHybrid(realCapacity)
 	default:
 		panic("shouldn't goes here.")
 	}
