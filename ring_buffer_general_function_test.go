@@ -27,7 +27,7 @@ func (s *MySuite) TestFindPowerOfTwo(c *C) {
 	c.Assert(res5, Equals, uint64(0))
 }
 
-var bufferSet = []BufferType {MPMC, Hybrid}
+var bufferSet = []BufferType {NodeBasedMPMC, Hybrid}
 
 func (s *MySuite) TestOfferAndPollSuccess(c *C) {
 	for _, t := range bufferSet {

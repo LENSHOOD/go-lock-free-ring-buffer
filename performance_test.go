@@ -9,13 +9,13 @@ import (
 )
 
 func BenchmarkNodeMPMC(b *testing.B) {
-	mpmcRB := New(MPMC, 16)
+	mpmcRB := New(NodeBasedMPMC, 16)
 	baseBenchmark(b, mpmcRB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0) / 2)
 }
 
 func BenchmarkHybridMPMC(b *testing.B) {
 	mpscRB := New(Hybrid, 16)
-	baseBenchmark(b, mpscRB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0) - 1)
+	baseBenchmark(b, mpscRB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0) / 2)
 }
 
 func BenchmarkChannelMPMC(b *testing.B) {

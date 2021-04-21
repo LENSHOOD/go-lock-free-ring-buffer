@@ -6,22 +6,23 @@ import (
 )
 
 type hybrid struct {
-	ringBufferBasement
+	head uint64
+	tail uint64
+	capacity uint64
+	mask uint64
 	element []interface{}
 }
 
 func newHybrid(capacity uint64) RingBuffer {
 	return &hybrid{
-		ringBufferBasement{head: uint64(0),
-			tail: uint64(0),
-			capacity: capacity,
-			mask: capacity - 1,
-		},
-		make([]interface{}, capacity),
+		head: uint64(0),
+		tail: uint64(0),
+		capacity: capacity,
+		mask: capacity - 1,
+		element: make([]interface{}, capacity),
 	}
 }
 
-// Offer a value pointer.
 func (r *hybrid) Offer(value interface{}) (success bool) {
 	oldTail := atomic.LoadUint64(&r.tail)
 	oldHead := atomic.LoadUint64(&r.head)
@@ -43,7 +44,6 @@ func (r *hybrid) Offer(value interface{}) (success bool) {
 	return true
 }
 
-// Poll head value pointer.
 func (r *hybrid) Poll() (value interface{}, success bool) {
 	oldTail := atomic.LoadUint64(&r.tail)
 	oldHead := atomic.LoadUint64(&r.head)

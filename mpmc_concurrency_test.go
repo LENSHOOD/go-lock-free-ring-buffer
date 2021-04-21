@@ -8,8 +8,8 @@ import (
 )
 
 func (s *MySuite) TestNodeMpmcConcurrencyRW(c *C) {
-	concurrencyRW(c, MPMC, func(buffer RingBuffer) uint64 {
-		return atomic.LoadUint64(&buffer.(*mpmc).head)
+	concurrencyRW(c, NodeBasedMPMC, func(buffer RingBuffer) uint64 {
+		return atomic.LoadUint64(&buffer.(*nodeBasedMpmc).head)
 	})
 }
 
