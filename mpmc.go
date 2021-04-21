@@ -1,4 +1,4 @@
-package go_mpsc_ring_buffer
+package go_lock_free_ring_buffer
 
 import (
 	atomic "sync/atomic"
@@ -40,7 +40,7 @@ type nodeBasedMpmc struct {
 	tail uint64
 	_padding1 [56]byte
 	mask uint64
-	_padding3 [56]byte
+	_padding2 [56]byte
 	element []*node
 }
 

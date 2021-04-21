@@ -1,4 +1,4 @@
-module go-mpsc-ring-buffer
+module go-lock-free-ring-buffer
 
 go 1.16
 

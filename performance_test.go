@@ -1,4 +1,4 @@
-package go_mpsc_ring_buffer
+package go_lock_free_ring_buffer
 
 import (
 	"math/rand"
