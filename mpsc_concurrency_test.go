@@ -54,10 +54,10 @@ func (s *MySuite) TestMPSCConcurrencyRW(c *C) {
 				finishWg.Done()
 				return
 			default:
-				if poll, success := buffer.Poll(); success {
-					resultArr[counter] = poll
+				buffer.(*hybrid).SingleConsumerPoll(func(v interface{}) {
+					resultArr[counter] = v
 					counter++
-				}
+				})
 			}
 		}
 	}
