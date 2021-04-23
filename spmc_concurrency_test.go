@@ -20,7 +20,7 @@ func (s *MySuite) TestSPMCConcurrencyRW(c *C) {
 		defer wg.Done()
 		i := 0
 		for {
-			buffer.(*hybrid).SingleProducerOffer(func() (v interface{}, finish bool) {
+			buffer.SingleProducerOffer(func() (v interface{}, finish bool) {
 				if i == len(source) {
 					return nil, true
 				}

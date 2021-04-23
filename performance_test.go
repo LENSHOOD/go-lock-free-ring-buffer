@@ -62,6 +62,20 @@ func (r *fakeBuffer) Poll() (value interface{}, success bool) {
 	}
 }
 
+func (r *fakeBuffer) SingleProducerOffer(valueSupplier func() (v interface{}, finish bool))  {
+	v, finish := valueSupplier()
+	if finish {
+		return
+	}
+
+	r.ch <- v
+}
+
+func (r *fakeBuffer) SingleConsumerPoll(valueConsumer func(interface{}))  {
+	v := <-r.ch
+	valueConsumer(v)
+}
+
 var controlCh = make(chan bool)
 var wg sync.WaitGroup
 func manage(b *testing.B, threadCount int, trueCount int) {

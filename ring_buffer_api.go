@@ -3,12 +3,14 @@ package go_mpsc_ring_buffer
 type RingBuffer interface {
 	Offer(interface{}) (success bool)
 	Poll() (value interface{}, success bool)
+    SingleProducerOffer(valueSupplier func() (v interface{}, finish bool))
+	SingleConsumerPoll(valueConsumer func(interface{}))
 }
 
 type BufferType int
 const (
-	NodeBasedMPMC BufferType = iota
-	Hybrid
+	Hybrid BufferType = iota
+	NodeBasedMPMC
 )
 
 // New RingBuffer with BufferType.

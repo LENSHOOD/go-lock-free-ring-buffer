@@ -54,7 +54,7 @@ func (s *MySuite) TestMPSCConcurrencyRW(c *C) {
 				finishWg.Done()
 				return
 			default:
-				buffer.(*hybrid).SingleConsumerPoll(func(v interface{}) {
+				buffer.SingleConsumerPoll(func(v interface{}) {
 					resultArr[counter] = v
 					counter++
 				})

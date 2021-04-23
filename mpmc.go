@@ -101,3 +101,21 @@ func (r *nodeBasedMpmc) Poll() (value interface{}, success bool) {
 	atomic.StoreUint64(&headNode.step, oldStep + r.mask)
 	return value, true
 }
+
+func (r *nodeBasedMpmc) SingleProducerOffer(valueSupplier func() (v interface{}, finish bool))  {
+	v, finish := valueSupplier()
+	if finish {
+		return
+	}
+
+	for r.Offer(v) {}
+}
+
+func (r *nodeBasedMpmc) SingleConsumerPoll(valueConsumer func(interface{}))  {
+	for {
+		if v, success := r.Poll(); success {
+			valueConsumer(v)
+			break
+		}
+	}
+}
