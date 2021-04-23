@@ -44,6 +44,30 @@ func (r *hybrid) Offer(value interface{}) (success bool) {
 	return true
 }
 
+func (r *hybrid) SingleProducerOffer(valueSupplier func() (v interface{}, finish bool)) {
+	oldTail := r.tail
+	oldHead := atomic.LoadUint64(&r.head)
+	if r.isFull(oldTail, oldHead) {
+		return
+	}
+
+	newTail := oldTail + 1
+	for ; newTail - oldHead < r.capacity; newTail++ {
+		tailNode := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newTail & r.mask])))
+		// not published yet
+		if tailNode != nil {
+			break
+		}
+
+		v, finish := valueSupplier()
+		if finish {
+			break
+		}
+		atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newTail & r.mask])), unsafe.Pointer(&v))
+	}
+	atomic.StoreUint64(&r.tail, newTail - 1)
+}
+
 func (r *hybrid) Poll() (value interface{}, success bool) {
 	oldTail := atomic.LoadUint64(&r.tail)
 	oldHead := atomic.LoadUint64(&r.head)
