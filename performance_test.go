@@ -10,17 +10,27 @@ import (
 
 func BenchmarkNodeMPMC(b *testing.B) {
 	mpmcRB := New(NodeBasedMPMC, 16)
-	baseBenchmark(b, mpmcRB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0) / 2)
+	mpmc(b, mpmcRB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0) / 2)
 }
 
 func BenchmarkHybridMPMC(b *testing.B) {
 	mpscRB := New(Hybrid, 16)
-	baseBenchmark(b, mpscRB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0) / 2)
+	mpmc(b, mpscRB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0) / 2)
 }
 
 func BenchmarkChannelMPMC(b *testing.B) {
 	fakeB := newFakeBuffer(16)
-	baseBenchmark(b, fakeB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0) / 2)
+	mpmc(b, fakeB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0) / 2)
+}
+
+func BenchmarkHybridMPSCControl(b *testing.B) {
+	mpscRB := New(Hybrid, 16)
+	mpmc(b, mpscRB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0) - 1)
+}
+
+func BenchmarkHybridMPSC(b *testing.B) {
+	mpscRB := New(Hybrid, 16)
+	mpsc(b, mpscRB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0) - 1)
 }
 
 func setup() []int {
@@ -93,7 +103,31 @@ func manage(b *testing.B, threadCount int, trueCount int) {
 	wg.Done()
 }
 
-func baseBenchmark(b *testing.B, buffer RingBuffer, threadCount int, trueCount int) {
+func mpmc(b *testing.B, buffer RingBuffer, threadCount int, trueCount int) {
+	baseBenchmark(b, buffer, threadCount, trueCount,
+		func(b RingBuffer, v interface{}) {
+			b.Offer(v)
+		},
+		func(b RingBuffer, counter *int32) {
+			if _, success := b.Poll(); success {
+				atomic.AddInt32(counter, 1)
+			}
+		})
+}
+
+func mpsc(b *testing.B, buffer RingBuffer, threadCount int, trueCount int) {
+	baseBenchmark(b, buffer, threadCount, trueCount,
+		func(b RingBuffer, v interface{}) {
+			b.Offer(v)
+		},
+		func(b RingBuffer, counter *int32) {
+			b.SingleConsumerPoll(func(v interface{}) {
+				atomic.AddInt32(counter, 1)
+			})
+		})
+}
+
+func baseBenchmark(b *testing.B, buffer RingBuffer, threadCount int, trueCount int, offer func(b RingBuffer, v interface{}), poll func(b RingBuffer, counter *int32)) {
 	ints := setup()
 
 	counter := int32(0)
@@ -103,11 +137,9 @@ func baseBenchmark(b *testing.B, buffer RingBuffer, threadCount int, trueCount i
 		wg.Wait()
 		for i := 1; pb.Next(); i++ {
 			if producer {
-				buffer.Offer(ints[(i & (len(ints) - 1))])
+				offer(buffer, ints[(i & (len(ints) - 1))])
 			} else {
-				if _, success := buffer.Poll(); success {
-					atomic.AddInt32(&counter, 1)
-				}
+				poll(buffer, &counter)
 			}
 		}
 	})
