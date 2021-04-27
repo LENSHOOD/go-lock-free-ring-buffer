@@ -10,36 +10,49 @@ import (
 
 func BenchmarkNodeMPMC(b *testing.B) {
 	mpmcRB := New(NodeBasedMPMC, 16)
-	mpmc(b, mpmcRB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0) / 2)
+	mpmcBenchmark(b, mpmcRB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0) / 2)
 }
 
 func BenchmarkHybridMPMC(b *testing.B) {
 	mpscRB := New(Hybrid, 16)
-	mpmc(b, mpscRB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0) / 2)
+	mpmcBenchmark(b, mpscRB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0) / 2)
 }
 
 func BenchmarkChannelMPMC(b *testing.B) {
 	fakeB := newFakeBuffer(16)
-	mpmc(b, fakeB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0) / 2)
+	mpmcBenchmark(b, fakeB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0) / 2)
 }
 
 func BenchmarkHybridMPSCControl(b *testing.B) {
 	mpscRB := New(Hybrid, 16)
-	mpmc(b, mpscRB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0) - 1)
+	mpmcBenchmark(b, mpscRB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0) - 1)
 }
 
 func BenchmarkHybridMPSC(b *testing.B) {
 	mpscRB := New(Hybrid, 16)
-	mpsc(b, mpscRB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0) - 1)
+	mpscBenchmark(b, mpscRB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0) - 1)
 }
 
-func setup() []int {
-	ints := make([]int, 64)
-	for i := 0; i < len(ints); i++ {
-		ints[i] = rand.Int()
-	}
+func BenchmarkHybridSPMCControl(b *testing.B) {
+	mpscRB := New(Hybrid, 16)
+	mpmcBenchmark(b, mpscRB, runtime.GOMAXPROCS(0), 1)
+}
 
-	return ints
+func BenchmarkHybridSPMC(b *testing.B) {
+	mpscRB := New(Hybrid, 16)
+	spmcBenchmark(b, mpscRB, runtime.GOMAXPROCS(0), 1)
+}
+
+func BenchmarkHybridSPSCControl(b *testing.B) {
+	runtime.GOMAXPROCS(2)
+	mpscRB := New(Hybrid, 16)
+	mpmcBenchmark(b, mpscRB, 2, 1)
+}
+
+func BenchmarkHybridSPSC(b *testing.B) {
+	runtime.GOMAXPROCS(2)
+	mpscRB := New(Hybrid, 16)
+	spscBenchmark(b, mpscRB, 2, 1)
 }
 
 type fakeBuffer struct {
@@ -86,6 +99,15 @@ func (r *fakeBuffer) SingleConsumerPoll(valueConsumer func(interface{}))  {
 	valueConsumer(v)
 }
 
+func setup() []int {
+	ints := make([]int, 64)
+	for i := 0; i < len(ints); i++ {
+		ints[i] = rand.Int()
+	}
+
+	return ints
+}
+
 var controlCh = make(chan bool)
 var wg sync.WaitGroup
 func manage(b *testing.B, threadCount int, trueCount int) {
@@ -103,31 +125,7 @@ func manage(b *testing.B, threadCount int, trueCount int) {
 	wg.Done()
 }
 
-func mpmc(b *testing.B, buffer RingBuffer, threadCount int, trueCount int) {
-	baseBenchmark(b, buffer, threadCount, trueCount,
-		func(b RingBuffer, v interface{}) {
-			b.Offer(v)
-		},
-		func(b RingBuffer, counter *int32) {
-			if _, success := b.Poll(); success {
-				atomic.AddInt32(counter, 1)
-			}
-		})
-}
-
-func mpsc(b *testing.B, buffer RingBuffer, threadCount int, trueCount int) {
-	baseBenchmark(b, buffer, threadCount, trueCount,
-		func(b RingBuffer, v interface{}) {
-			b.Offer(v)
-		},
-		func(b RingBuffer, counter *int32) {
-			b.SingleConsumerPoll(func(v interface{}) {
-				atomic.AddInt32(counter, 1)
-			})
-		})
-}
-
-func baseBenchmark(b *testing.B, buffer RingBuffer, threadCount int, trueCount int, offer func(b RingBuffer, v interface{}), poll func(b RingBuffer, counter *int32)) {
+func mpmcBenchmark(b *testing.B, buffer RingBuffer, threadCount int, trueCount int) {
 	ints := setup()
 
 	counter := int32(0)
@@ -137,9 +135,92 @@ func baseBenchmark(b *testing.B, buffer RingBuffer, threadCount int, trueCount i
 		wg.Wait()
 		for i := 1; pb.Next(); i++ {
 			if producer {
-				offer(buffer, ints[(i & (len(ints) - 1))])
+				buffer.Offer(ints[(i & (len(ints) - 1))])
 			} else {
-				poll(buffer, &counter)
+				if _, success := buffer.Poll(); success {
+					atomic.AddInt32(&counter, 1)
+				}
+			}
+		}
+	})
+
+	b.StopTimer()
+	b.Logf("Success handover count: %d", counter)
+}
+
+func mpscBenchmark(b *testing.B, buffer RingBuffer, threadCount int, trueCount int) {
+	ints := setup()
+
+	counter := int32(0)
+	consumer := func(v interface{}) {
+		atomic.AddInt32(&counter, 1)
+	}
+	go manage(b, threadCount, trueCount)
+	b.RunParallel(func(pb *testing.PB) {
+		producer := <-controlCh
+		wg.Wait()
+		for i := 1; pb.Next(); i++ {
+			if producer {
+				buffer.Offer(ints[(i & (len(ints) - 1))])
+			} else {
+				buffer.SingleConsumerPoll(consumer)
+			}
+		}
+	})
+
+	b.StopTimer()
+	b.Logf("Success handover count: %d", counter)
+}
+
+func spmcBenchmark(b *testing.B, buffer RingBuffer, threadCount int, trueCount int) {
+	ints := setup()
+
+	counter := int32(0)
+	go manage(b, threadCount, trueCount)
+	b.RunParallel(func(pb *testing.PB) {
+		producer := <-controlCh
+		wg.Wait()
+		for i := 1; pb.Next(); i++ {
+			if producer {
+				j := i
+				buffer.SingleProducerOffer(func() (v interface{}, finish bool) {
+					v = ints[(j & (len(ints) - 1))]
+					j++
+					return v, false
+				})
+			} else {
+				if _, success := buffer.Poll(); success {
+					atomic.AddInt32(&counter, 1)
+				}
+			}
+		}
+	})
+
+	b.StopTimer()
+	b.Logf("Success handover count: %d", counter)
+}
+
+func spscBenchmark(b *testing.B, buffer RingBuffer, threadCount int, trueCount int) {
+	ints := setup()
+
+	counter := int32(0)
+	consumer := func(v interface{}) {
+		atomic.AddInt32(&counter, 1)
+	}
+	go manage(b, threadCount, trueCount)
+	b.RunParallel(func(pb *testing.PB) {
+		producer := <-controlCh
+		wg.Wait()
+		for i := 1; pb.Next(); i++ {
+			if producer {
+				j := i
+				buffer.SingleProducerOffer(func() (v interface{}, finish bool) {
+					v = ints[(j & (len(ints) - 1))]
+					j++
+					return v, false
+				})
+			} else {
+				buffer.SingleConsumerPoll(consumer)
 			}
 		}
 	})
