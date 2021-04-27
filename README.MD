@@ -7,10 +7,10 @@ You can find more information about the implementation at my [blog post](https:/
 Below is the API and how to use it:
 ```go
 type RingBuffer interface {
-	Offer(interface{}) (success bool)
-	Poll() (value interface{}, success bool)
-	SingleProducerOffer(valueSupplier func() (v interface{}, finish bool))
-	SingleConsumerPoll(valueConsumer func(interface{}))
+    Offer(interface{}) (success bool)
+    Poll() (value interface{}, success bool)
+    SingleProducerOffer(valueSupplier func() (v interface{}, finish bool))
+    SingleConsumerPoll(valueConsumer func(interface{}))
 }
 ```
 Generally, we can simply use `Offer()` and `Poll()` to use it like normal queue. Any types are acceptable, but for the memory efficiency concern, pointer is a better choice to handover by the ring buffer, no GC will happen during read/write.
@@ -18,10 +18,10 @@ Generally, we can simply use `Offer()` and `Poll()` to use it like normal queue.
 We can create one as follows:
 ```go
 import (
-	lfrb "go-lock-free-ring-buffer"
+    "lfring"
 )
 
-buffer := lfrb.New(lfrb.Hybrid, 16)
+buffer := lfring.New(lfring.Hybrid, 16)
 ```
 
 The first argument of `New()` is the type of ring buffer, I currently provide two implementations, they both have same behavior, the only difference is a few inner implementations.

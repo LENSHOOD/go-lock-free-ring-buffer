@@ -1,4 +1,4 @@
-package go_lock_free_ring_buffer
+package lfring
 
 import (
 	"math/rand"
@@ -10,27 +10,27 @@ import (
 
 func BenchmarkNodeMPMC(b *testing.B) {
 	mpmcRB := New(NodeBasedMPMC, 16)
-	mpmcBenchmark(b, mpmcRB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0) / 2)
+	mpmcBenchmark(b, mpmcRB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0)/2)
 }
 
 func BenchmarkHybridMPMC(b *testing.B) {
 	mpscRB := New(Hybrid, 16)
-	mpmcBenchmark(b, mpscRB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0) / 2)
+	mpmcBenchmark(b, mpscRB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0)/2)
 }
 
 func BenchmarkChannelMPMC(b *testing.B) {
 	fakeB := newFakeBuffer(16)
-	mpmcBenchmark(b, fakeB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0) / 2)
+	mpmcBenchmark(b, fakeB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0)/2)
 }
 
 func BenchmarkHybridMPSCControl(b *testing.B) {
 	mpscRB := New(Hybrid, 16)
-	mpmcBenchmark(b, mpscRB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0) - 1)
+	mpmcBenchmark(b, mpscRB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0)-1)
 }
 
 func BenchmarkHybridMPSC(b *testing.B) {
 	mpscRB := New(Hybrid, 16)
-	mpscBenchmark(b, mpscRB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0) - 1)
+	mpscBenchmark(b, mpscRB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0)-1)
 }
 
 func BenchmarkHybridSPMCControl(b *testing.B) {
@@ -57,7 +57,7 @@ func BenchmarkHybridSPSC(b *testing.B) {
 
 type fakeBuffer struct {
 	capacity uint64
-	ch chan interface{}
+	ch       chan interface{}
 }
 
 func newFakeBuffer(capacity uint64) RingBuffer {
@@ -85,7 +85,7 @@ func (r *fakeBuffer) Poll() (value interface{}, success bool) {
 	}
 }
 
-func (r *fakeBuffer) SingleProducerOffer(valueSupplier func() (v interface{}, finish bool))  {
+func (r *fakeBuffer) SingleProducerOffer(valueSupplier func() (v interface{}, finish bool)) {
 	v, finish := valueSupplier()
 	if finish {
 		return
@@ -94,7 +94,7 @@ func (r *fakeBuffer) SingleProducerOffer(valueSupplier func() (v interface{}, fi
 	r.ch <- v
 }
 
-func (r *fakeBuffer) SingleConsumerPoll(valueConsumer func(interface{}))  {
+func (r *fakeBuffer) SingleConsumerPoll(valueConsumer func(interface{})) {
 	v := <-r.ch
 	valueConsumer(v)
 }
@@ -110,6 +110,7 @@ func setup() []int {
 
 var controlCh = make(chan bool)
 var wg sync.WaitGroup
+
 func manage(b *testing.B, threadCount int, trueCount int) {
 	wg.Add(1)
 	for i := 0; i < threadCount; i++ {

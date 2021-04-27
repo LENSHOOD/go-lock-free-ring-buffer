@@ -1,14 +1,13 @@
-package go_lock_free_ring_buffer
+package lfring
 
 import (
 	. "gopkg.in/check.v1"
 	"testing"
 )
 
-
 // hook up go-check to go testing
-func Test(t *testing.T) {TestingT(t)}
+func Test(t *testing.T) { TestingT(t) }
 
-type MySuite struct {}
+type MySuite struct{}
 
 var _ = Suite(&MySuite{})

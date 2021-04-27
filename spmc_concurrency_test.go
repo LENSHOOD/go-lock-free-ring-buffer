@@ -1,4 +1,4 @@
-package go_lock_free_ring_buffer
+package lfring
 
 import (
 	. "gopkg.in/check.v1"

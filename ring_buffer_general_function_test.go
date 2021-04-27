@@ -1,4 +1,4 @@
-package go_lock_free_ring_buffer
+package lfring
 
 import (
 	. "gopkg.in/check.v1"
@@ -27,7 +27,7 @@ func (s *MySuite) TestFindPowerOfTwo(c *C) {
 	c.Assert(res5, Equals, uint64(0))
 }
 
-var bufferSet = []BufferType {NodeBasedMPMC, Hybrid}
+var bufferSet = []BufferType{NodeBasedMPMC, Hybrid}
 
 func (s *MySuite) TestOfferAndPollSuccess(c *C) {
 	for _, t := range bufferSet {

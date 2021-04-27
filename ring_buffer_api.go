@@ -1,15 +1,21 @@
-package go_lock_free_ring_buffer
+package lfring
 
+// RingBuffer defines the behavior of ring buffer
 type RingBuffer interface {
 	Offer(interface{}) (success bool)
 	Poll() (value interface{}, success bool)
-    SingleProducerOffer(valueSupplier func() (v interface{}, finish bool))
+	SingleProducerOffer(valueSupplier func() (v interface{}, finish bool))
 	SingleConsumerPoll(valueConsumer func(interface{}))
 }
 
+// BufferType contains different type name of ring buffer
 type BufferType int
+
 const (
+	// Hybrid ring buffer, hybrid with mpmc/mpsc/spmc
 	Hybrid BufferType = iota
+
+	// NodeBasedMPMC is a type of ring buffer that is node based
 	NodeBasedMPMC
 )
 

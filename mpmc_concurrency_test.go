@@ -1,4 +1,4 @@
-package go_lock_free_ring_buffer
+package lfring
 
 import (
 	. "gopkg.in/check.v1"
@@ -111,7 +111,7 @@ func drainToSet(srcArr []interface{}, descSet map[interface{}]int) {
 	for i := 0; i < len(srcArr); i++ {
 		if srcArr[i] != nil {
 			if v, exist := descSet[srcArr[i]]; exist {
-				descSet[srcArr[i]] = v+1
+				descSet[srcArr[i]] = v + 1
 			} else {
 				descSet[srcArr[i]] = 1
 			}

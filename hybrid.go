@@ -1,4 +1,4 @@
-package go_lock_free_ring_buffer
+package lfring
 
 import (
 	"sync/atomic"
@@ -6,20 +6,20 @@ import (
 )
 
 type hybrid struct {
-	head uint64
-	tail uint64
+	head     uint64
+	tail     uint64
 	capacity uint64
-	mask uint64
-	element []interface{}
+	mask     uint64
+	element  []interface{}
 }
 
 func newHybrid(capacity uint64) RingBuffer {
 	return &hybrid{
-		head: uint64(0),
-		tail: uint64(0),
+		head:     uint64(0),
+		tail:     uint64(0),
 		capacity: capacity,
-		mask: capacity - 1,
-		element: make([]interface{}, capacity),
+		mask:     capacity - 1,
+		element:  make([]interface{}, capacity),
 	}
 }
 
@@ -31,7 +31,7 @@ func (r *hybrid) Offer(value interface{}) (success bool) {
 	}
 
 	newTail := oldTail + 1
-	tailNode := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newTail & r.mask])))
+	tailNode := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newTail&r.mask])))
 	// not published yet
 	if tailNode != nil {
 		return false
@@ -40,7 +40,7 @@ func (r *hybrid) Offer(value interface{}) (success bool) {
 		return false
 	}
 
-	atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newTail & r.mask])), unsafe.Pointer(&value))
+	atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newTail&r.mask])), unsafe.Pointer(&value))
 	return true
 }
 
@@ -52,8 +52,8 @@ func (r *hybrid) SingleProducerOffer(valueSupplier func() (v interface{}, finish
 	}
 
 	newTail := oldTail + 1
-	for ; newTail - oldHead < r.capacity; newTail++ {
-		tailNode := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newTail & r.mask])))
+	for ; newTail-oldHead < r.capacity; newTail++ {
+		tailNode := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newTail&r.mask])))
 		// not published yet
 		if tailNode != nil {
 			break
@@ -63,9 +63,9 @@ func (r *hybrid) SingleProducerOffer(valueSupplier func() (v interface{}, finish
 		if finish {
 			break
 		}
-		atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newTail & r.mask])), unsafe.Pointer(&v))
+		atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newTail&r.mask])), unsafe.Pointer(&v))
 	}
-	atomic.StoreUint64(&r.tail, newTail - 1)
+	atomic.StoreUint64(&r.tail, newTail-1)
 }
 
 func (r *hybrid) Poll() (value interface{}, success bool) {
@@ -76,7 +76,7 @@ func (r *hybrid) Poll() (value interface{}, success bool) {
 	}
 
 	newHead := oldHead + 1
-	headNode := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newHead & r.mask])))
+	headNode := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newHead&r.mask])))
 	// not published yet
 	if headNode == nil {
 		return nil, false
@@ -84,7 +84,7 @@ func (r *hybrid) Poll() (value interface{}, success bool) {
 	if !atomic.CompareAndSwapUint64(&r.head, oldHead, newHead) {
 		return nil, true
 	}
-	atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newHead & r.mask])), nil)
+	atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newHead&r.mask])), nil)
 
 	return *(*interface{})(headNode), true
 }
@@ -98,16 +98,16 @@ func (r *hybrid) SingleConsumerPoll(valueConsumer func(interface{})) {
 
 	currHead := oldHead + 1
 	for ; currHead <= oldTail; currHead++ {
-		currNode := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[currHead & r.mask])))
+		currNode := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[currHead&r.mask])))
 		// not published yet
 		if currNode == nil {
 			break
 		}
 		valueConsumer(*(*interface{})(currNode))
-		atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[currHead & r.mask])), nil)
+		atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[currHead&r.mask])), nil)
 	}
 
-	atomic.StoreUint64(&r.head, currHead - 1)
+	atomic.StoreUint64(&r.head, currHead-1)
 }
 
 // isFull check whether buffer is full by compare (tail - head).
@@ -121,7 +121,7 @@ func (r *hybrid) SingleConsumerPoll(valueConsumer func(interface{})) {
 // Hence, once tail < head means the tail is far behind the real (which means CAS-tail will
 // definitely fail), so we just return full to the Offer caller let it try again.
 func (r *hybrid) isFull(tail uint64, head uint64) bool {
-	return tail - head >= r.capacity - 1
+	return tail-head >= r.capacity-1
 }
 
 // isEmpty check whether buffer is empty by compare (tail - head).
@@ -136,5 +136,5 @@ func (r *hybrid) isFull(tail uint64, head uint64) bool {
 // To keep the correctness of ring buffer, we need to return true when tail < head and
 // tail == head.
 func (r *hybrid) isEmpty(tail uint64, head uint64) bool {
-	return (tail < head) || (tail - head == 0)
+	return (tail < head) || (tail-head == 0)
 }

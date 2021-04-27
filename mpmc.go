@@ -1,4 +1,4 @@
-package go_lock_free_ring_buffer
+package lfring
 
 import (
 	atomic "sync/atomic"
@@ -35,18 +35,18 @@ import (
 // to check the buffer status, if buffer full / empty will lead the producer / consumer never
 // pass the node.step check.
 type nodeBasedMpmc struct {
-	head uint64
+	head      uint64
 	_padding0 [56]byte
-	tail uint64
+	tail      uint64
 	_padding1 [56]byte
-	mask uint64
+	mask      uint64
 	_padding2 [56]byte
-	element []*node
+	element   []*node
 }
 
 type node struct {
-	step uint64
-	value interface{}
+	step     uint64
+	value    interface{}
 	_padding [40]byte
 }
 
@@ -57,9 +57,9 @@ func newNodeBasedMpmc(capacity uint64) RingBuffer {
 	}
 
 	return &nodeBasedMpmc{
-		head: uint64(0),
-		tail: uint64(0),
-		mask: capacity - 1,
+		head:    uint64(0),
+		tail:    uint64(0),
+		mask:    capacity - 1,
 		element: nodes,
 	}
 }
@@ -67,51 +67,52 @@ func newNodeBasedMpmc(capacity uint64) RingBuffer {
 // Offer a value pointer.
 func (r *nodeBasedMpmc) Offer(value interface{}) (success bool) {
 	oldTail := atomic.LoadUint64(&r.tail)
-	tailNode := r.element[oldTail & r.mask]
+	tailNode := r.element[oldTail&r.mask]
 	oldStep := atomic.LoadUint64(&tailNode.step)
 	// not published yet
 	if oldStep != oldTail {
 		return false
 	}
 
-	if !atomic.CompareAndSwapUint64(&r.tail, oldTail, oldTail + 1) {
+	if !atomic.CompareAndSwapUint64(&r.tail, oldTail, oldTail+1) {
 		return false
 	}
 
 	atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&tailNode.value)), unsafe.Pointer(&value))
-	atomic.StoreUint64(&tailNode.step, tailNode.step + 1)
+	atomic.StoreUint64(&tailNode.step, tailNode.step+1)
 	return true
 }
 
 // Poll head value pointer.
 func (r *nodeBasedMpmc) Poll() (value interface{}, success bool) {
 	oldHead := atomic.LoadUint64(&r.head)
-	headNode := r.element[oldHead & r.mask]
+	headNode := r.element[oldHead&r.mask]
 	oldStep := atomic.LoadUint64(&headNode.step)
 	// not published yet
-	if oldStep != oldHead + 1 {
+	if oldStep != oldHead+1 {
 		return nil, false
 	}
 
-	if !atomic.CompareAndSwapUint64(&r.head, oldHead, oldHead + 1) {
+	if !atomic.CompareAndSwapUint64(&r.head, oldHead, oldHead+1) {
 		return nil, false
 	}
 
 	value = *(*interface{})(atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&headNode.value))))
-	atomic.StoreUint64(&headNode.step, oldStep + r.mask)
+	atomic.StoreUint64(&headNode.step, oldStep+r.mask)
 	return value, true
 }
 
-func (r *nodeBasedMpmc) SingleProducerOffer(valueSupplier func() (v interface{}, finish bool))  {
+func (r *nodeBasedMpmc) SingleProducerOffer(valueSupplier func() (v interface{}, finish bool)) {
 	v, finish := valueSupplier()
 	if finish {
 		return
 	}
 
-	for r.Offer(v) {}
+	for r.Offer(v) {
+	}
 }
 
-func (r *nodeBasedMpmc) SingleConsumerPoll(valueConsumer func(interface{}))  {
+func (r *nodeBasedMpmc) SingleConsumerPoll(valueConsumer func(interface{})) {
 	for {
 		if v, success := r.Poll(); success {
 			valueConsumer(v)
