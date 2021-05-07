@@ -82,7 +82,7 @@ func (r *hybrid) Poll() (value interface{}, success bool) {
 		return nil, false
 	}
 	if !atomic.CompareAndSwapUint64(&r.head, oldHead, newHead) {
-		return nil, true
+		return nil, false
 	}
 	atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newHead&r.mask])), nil)
 
