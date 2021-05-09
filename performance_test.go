@@ -9,12 +9,12 @@ import (
 )
 
 func BenchmarkNodeMPMC(b *testing.B) {
-	mpmcRB := New(NodeBasedMPMC, 16)
+	mpmcRB := New(NodeBased, 16)
 	mpmcBenchmark(b, mpmcRB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0)/2)
 }
 
 func BenchmarkHybridMPMC(b *testing.B) {
-	mpscRB := New(Hybrid, 16)
+	mpscRB := New(Classical, 16)
 	mpmcBenchmark(b, mpscRB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0)/2)
 }
 
@@ -24,34 +24,34 @@ func BenchmarkChannelMPMC(b *testing.B) {
 }
 
 func BenchmarkHybridMPSCControl(b *testing.B) {
-	mpscRB := New(Hybrid, 16)
+	mpscRB := New(Classical, 16)
 	mpmcBenchmark(b, mpscRB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0)-1)
 }
 
 func BenchmarkHybridMPSC(b *testing.B) {
-	mpscRB := New(Hybrid, 16)
+	mpscRB := New(Classical, 16)
 	mpscBenchmark(b, mpscRB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0)-1)
 }
 
 func BenchmarkHybridSPMCControl(b *testing.B) {
-	mpscRB := New(Hybrid, 16)
+	mpscRB := New(Classical, 16)
 	mpmcBenchmark(b, mpscRB, runtime.GOMAXPROCS(0), 1)
 }
 
 func BenchmarkHybridSPMC(b *testing.B) {
-	mpscRB := New(Hybrid, 16)
+	mpscRB := New(Classical, 16)
 	spmcBenchmark(b, mpscRB, runtime.GOMAXPROCS(0), 1)
 }
 
 func BenchmarkHybridSPSCControl(b *testing.B) {
 	runtime.GOMAXPROCS(2)
-	mpscRB := New(Hybrid, 16)
+	mpscRB := New(Classical, 16)
 	mpmcBenchmark(b, mpscRB, 2, 1)
 }
 
 func BenchmarkHybridSPSC(b *testing.B) {
 	runtime.GOMAXPROCS(2)
-	mpscRB := New(Hybrid, 16)
+	mpscRB := New(Classical, 16)
 	spscBenchmark(b, mpscRB, 2, 1)
 }
 

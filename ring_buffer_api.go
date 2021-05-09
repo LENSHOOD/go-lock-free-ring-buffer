@@ -8,28 +8,28 @@ type RingBuffer interface {
 	SingleConsumerPoll(valueConsumer func(interface{}))
 }
 
-// BufferType contains different type name of ring buffer
+// BufferType contains different type names of ring buffer
 type BufferType int
 
 const (
-	// Hybrid ring buffer, hybrid with mpmc/mpsc/spmc
-	Hybrid BufferType = iota
+	// Classical ring buffer is a classical implementation of ring buffer
+	Classical BufferType = iota
 
-	// NodeBasedMPMC is a type of ring buffer that is node based
-	NodeBasedMPMC
+	// NodeBased is a type of ring buffer that implemented as node based,
+	// see https://www.1024cores.net/home/lock-free-algorithms/queues/bounded-mpmc-queue
+	NodeBased
 )
 
-// New RingBuffer with BufferType.
-// The array capacity should add extra one because ring buffer always left one slot empty.
+// New build a RingBuffer with BufferType and capacity.
 // Expand capacity as power-of-two, to make head/tail calculate faster and simpler
 func New(t BufferType, capacity uint64) RingBuffer {
 	realCapacity := findPowerOfTwo(capacity)
 
 	switch t {
-	case NodeBasedMPMC:
-		return newNodeBasedMpmc(realCapacity)
-	case Hybrid:
-		return newHybrid(realCapacity)
+	case NodeBased:
+		return newNodeBased(realCapacity)
+	case Classical:
+		return newClassical(realCapacity)
 	default:
 		panic("shouldn't goes here.")
 	}

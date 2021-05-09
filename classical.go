@@ -5,7 +5,7 @@ import (
 	"unsafe"
 )
 
-type hybrid struct {
+type classical struct {
 	head     uint64
 	tail     uint64
 	capacity uint64
@@ -13,8 +13,8 @@ type hybrid struct {
 	element  []interface{}
 }
 
-func newHybrid(capacity uint64) RingBuffer {
-	return &hybrid{
+func newClassical(capacity uint64) RingBuffer {
+	return &classical{
 		head:     uint64(0),
 		tail:     uint64(0),
 		capacity: capacity,
@@ -23,7 +23,7 @@ func newHybrid(capacity uint64) RingBuffer {
 	}
 }
 
-func (r *hybrid) Offer(value interface{}) (success bool) {
+func (r *classical) Offer(value interface{}) (success bool) {
 	oldTail := atomic.LoadUint64(&r.tail)
 	oldHead := atomic.LoadUint64(&r.head)
 	if r.isFull(oldTail, oldHead) {
@@ -44,7 +44,7 @@ func (r *hybrid) Offer(value interface{}) (success bool) {
 	return true
 }
 
-func (r *hybrid) SingleProducerOffer(valueSupplier func() (v interface{}, finish bool)) {
+func (r *classical) SingleProducerOffer(valueSupplier func() (v interface{}, finish bool)) {
 	oldTail := r.tail
 	oldHead := atomic.LoadUint64(&r.head)
 	if r.isFull(oldTail, oldHead) {
@@ -68,7 +68,7 @@ func (r *hybrid) SingleProducerOffer(valueSupplier func() (v interface{}, finish
 	atomic.StoreUint64(&r.tail, newTail-1)
 }
 
-func (r *hybrid) Poll() (value interface{}, success bool) {
+func (r *classical) Poll() (value interface{}, success bool) {
 	oldTail := atomic.LoadUint64(&r.tail)
 	oldHead := atomic.LoadUint64(&r.head)
 	if r.isEmpty(oldTail, oldHead) {
@@ -89,7 +89,7 @@ func (r *hybrid) Poll() (value interface{}, success bool) {
 	return *(*interface{})(headNode), true
 }
 
-func (r *hybrid) SingleConsumerPoll(valueConsumer func(interface{})) {
+func (r *classical) SingleConsumerPoll(valueConsumer func(interface{})) {
 	oldTail := atomic.LoadUint64(&r.tail)
 	oldHead := r.head
 	if r.isEmpty(oldTail, oldHead) {
@@ -120,7 +120,7 @@ func (r *hybrid) SingleConsumerPoll(valueConsumer func(interface{})) {
 //
 // Hence, once tail < head means the tail is far behind the real (which means CAS-tail will
 // definitely fail), so we just return full to the Offer caller let it try again.
-func (r *hybrid) isFull(tail uint64, head uint64) bool {
+func (r *classical) isFull(tail uint64, head uint64) bool {
 	return tail-head >= r.capacity-1
 }
 
@@ -135,6 +135,6 @@ func (r *hybrid) isFull(tail uint64, head uint64) bool {
 //
 // To keep the correctness of ring buffer, we need to return true when tail < head and
 // tail == head.
-func (r *hybrid) isEmpty(tail uint64, head uint64) bool {
+func (r *classical) isEmpty(tail uint64, head uint64) bool {
 	return (tail < head) || (tail-head == 0)
 }

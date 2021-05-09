@@ -8,14 +8,14 @@ import (
 )
 
 func (s *MySuite) TestNodeMpmcConcurrencyRW(c *C) {
-	concurrencyRW(c, NodeBasedMPMC, func(buffer RingBuffer) uint64 {
-		return atomic.LoadUint64(&buffer.(*nodeBasedMpmc).head)
+	concurrencyRW(c, NodeBased, func(buffer RingBuffer) uint64 {
+		return atomic.LoadUint64(&buffer.(*nodeBased).head)
 	})
 }
 
 func (s *MySuite) TestHybridMpmcConcurrencyRW(c *C) {
-	concurrencyRW(c, Hybrid, func(buffer RingBuffer) uint64 {
-		return atomic.LoadUint64(&buffer.(*hybrid).head)
+	concurrencyRW(c, Classical, func(buffer RingBuffer) uint64 {
+		return atomic.LoadUint64(&buffer.(*classical).head)
 	})
 }
 

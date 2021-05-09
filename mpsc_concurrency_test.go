@@ -13,7 +13,7 @@ func (s *MySuite) TestMPSCConcurrencyRW(c *C) {
 	source := initDataSource()
 
 	capacity := 4
-	buffer := New(Hybrid, uint64(capacity)).(*hybrid)
+	buffer := New(Classical, uint64(capacity)).(*classical)
 
 	var wg sync.WaitGroup
 	offerNumber := func(buffer RingBuffer) {
