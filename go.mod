@@ -1,4 +1,4 @@
-module go-lock-free-ring-buffer
+module github.com/LENSHOOD/go-lock-free-ring-buffer
 
 go 1.16
 
