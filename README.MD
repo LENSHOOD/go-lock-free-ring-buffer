@@ -18,7 +18,7 @@ Generally, we can simply call `Offer()` and `Poll()` to use it like normal queue
 We can create one as follows:
 ```go
 import (
-    "lfring"
+    lfring "github.com/LENSHOOD/go-lock-free-ring-buffer"
 )
 
 buffer := lfring.New(lfring.Classical, 16)
