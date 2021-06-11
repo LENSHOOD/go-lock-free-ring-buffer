@@ -1,4 +1,6 @@
-## Lock free ring buffer  [![Go Report Card](https://goreportcard.com/badge/github.com/LENSHOOD/go-lock-free-ring-buffer)](https://goreportcard.com/report/github.com/LENSHOOD/go-lock-free-ring-buffer)
+## Lock free ring buffer  
+[![Go Report Card](https://goreportcard.com/badge/github.com/LENSHOOD/go-lock-free-ring-buffer)](https://goreportcard.com/report/github.com/LENSHOOD/go-lock-free-ring-buffer) [![Go Reference](https://pkg.go.dev/badge/github.com/LENSHOOD/go-lock-free-ring-buffer.svg)](https://pkg.go.dev/github.com/LENSHOOD/go-lock-free-ring-buffer) [![GitHub license](https://img.shields.io/github/license/LENSHOOD/go-lock-free-ring-buffer)](https://github.com/LENSHOOD/go-lock-free-ring-buffer/blob/master/LICENSE) [![GitHub release](https://img.shields.io/github/tag/LENSHOOD/go-lock-free-ring-buffer)](https://github.com/LENSHOOD/go-lock-free-ring-buffer/releases/tag/v0.1.0)
+
 This repo is an implementation of lock-free ring buffer built on Golang.
 
 You can find more information about this implementation at my [blog post](https://lenshood.github.io/2021/04/19/lock-free-ring-buffer/#more).
