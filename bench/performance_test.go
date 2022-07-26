@@ -1,6 +1,7 @@
-package lfring
+package bench
 
 import (
+	"github.com/LENSHOOD/go-lock-free-ring-buffer"
 	"math/rand"
 	"runtime"
 	"sync"
@@ -8,50 +9,56 @@ import (
 	"testing"
 )
 
+var (
+	capacity        uint64 = 16
+	threadNum              = runtime.GOMAXPROCS(0)
+	mpmcProducerNum        = runtime.GOMAXPROCS(0) / 2
+)
+
 func BenchmarkNodeMPMC(b *testing.B) {
-	mpmcRB := New(NodeBased, 16)
-	mpmcBenchmark(b, mpmcRB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0)/2)
+	mpmcRB := lfring.New(lfring.NodeBased, capacity)
+	mpmcBenchmark(b, mpmcRB, threadNum, mpmcProducerNum)
 }
 
 func BenchmarkHybridMPMC(b *testing.B) {
-	mpscRB := New(Classical, 16)
-	mpmcBenchmark(b, mpscRB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0)/2)
+	mpscRB := lfring.New(lfring.Classical, capacity)
+	mpmcBenchmark(b, mpscRB, threadNum, mpmcProducerNum)
 }
 
 func BenchmarkChannelMPMC(b *testing.B) {
-	fakeB := newFakeBuffer(16)
-	mpmcBenchmark(b, fakeB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0)/2)
+	fakeB := newFakeBuffer(capacity)
+	mpmcBenchmark(b, fakeB, threadNum, mpmcProducerNum)
 }
 
 func BenchmarkHybridMPSCControl(b *testing.B) {
-	mpscRB := New(Classical, 16)
-	mpmcBenchmark(b, mpscRB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0)-1)
+	mpscRB := lfring.New(lfring.Classical, capacity)
+	mpmcBenchmark(b, mpscRB, threadNum, threadNum-1)
 }
 
 func BenchmarkHybridMPSC(b *testing.B) {
-	mpscRB := New(Classical, 16)
-	mpscBenchmark(b, mpscRB, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0)-1)
+	mpscRB := lfring.New(lfring.Classical, capacity)
+	mpscBenchmark(b, mpscRB, threadNum, threadNum-1)
 }
 
 func BenchmarkHybridSPMCControl(b *testing.B) {
-	mpscRB := New(Classical, 16)
-	mpmcBenchmark(b, mpscRB, runtime.GOMAXPROCS(0), 1)
+	mpscRB := lfring.New(lfring.Classical, capacity)
+	mpmcBenchmark(b, mpscRB, threadNum, 1)
 }
 
 func BenchmarkHybridSPMC(b *testing.B) {
-	mpscRB := New(Classical, 16)
-	spmcBenchmark(b, mpscRB, runtime.GOMAXPROCS(0), 1)
+	mpscRB := lfring.New(lfring.Classical, capacity)
+	spmcBenchmark(b, mpscRB, threadNum, 1)
 }
 
 func BenchmarkHybridSPSCControl(b *testing.B) {
 	runtime.GOMAXPROCS(2)
-	mpscRB := New(Classical, 16)
+	mpscRB := lfring.New(lfring.Classical, capacity)
 	mpmcBenchmark(b, mpscRB, 2, 1)
 }
 
 func BenchmarkHybridSPSC(b *testing.B) {
 	runtime.GOMAXPROCS(2)
-	mpscRB := New(Classical, 16)
+	mpscRB := lfring.New(lfring.Classical, capacity)
 	spscBenchmark(b, mpscRB, 2, 1)
 }
 
@@ -60,7 +67,7 @@ type fakeBuffer struct {
 	ch       chan interface{}
 }
 
-func newFakeBuffer(capacity uint64) RingBuffer {
+func newFakeBuffer(capacity uint64) lfring.RingBuffer {
 	return &fakeBuffer{
 		capacity,
 		make(chan interface{}, capacity),
@@ -112,6 +119,8 @@ var controlCh = make(chan bool)
 var wg sync.WaitGroup
 
 func manage(b *testing.B, threadCount int, trueCount int) {
+	b.SetParallelism(threadCount / runtime.GOMAXPROCS(0))
+
 	wg.Add(1)
 	for i := 0; i < threadCount; i++ {
 		if trueCount > 0 {
@@ -126,7 +135,7 @@ func manage(b *testing.B, threadCount int, trueCount int) {
 	wg.Done()
 }
 
-func mpmcBenchmark(b *testing.B, buffer RingBuffer, threadCount int, trueCount int) {
+func mpmcBenchmark(b *testing.B, buffer lfring.RingBuffer, threadCount int, trueCount int) {
 	ints := setup()
 
 	counter := int32(0)
@@ -149,7 +158,7 @@ func mpmcBenchmark(b *testing.B, buffer RingBuffer, threadCount int, trueCount i
 	b.Logf("Success handover count: %d", counter)
 }
 
-func mpscBenchmark(b *testing.B, buffer RingBuffer, threadCount int, trueCount int) {
+func mpscBenchmark(b *testing.B, buffer lfring.RingBuffer, threadCount int, trueCount int) {
 	ints := setup()
 
 	counter := int32(0)
@@ -173,7 +182,7 @@ func mpscBenchmark(b *testing.B, buffer RingBuffer, threadCount int, trueCount i
 	b.Logf("Success handover count: %d", counter)
 }
 
-func spmcBenchmark(b *testing.B, buffer RingBuffer, threadCount int, trueCount int) {
+func spmcBenchmark(b *testing.B, buffer lfring.RingBuffer, threadCount int, trueCount int) {
 	ints := setup()
 
 	counter := int32(0)
@@ -201,7 +210,7 @@ func spmcBenchmark(b *testing.B, buffer RingBuffer, threadCount int, trueCount i
 	b.Logf("Success handover count: %d", counter)
 }
 
-func spscBenchmark(b *testing.B, buffer RingBuffer, threadCount int, trueCount int) {
+func spscBenchmark(b *testing.B, buffer lfring.RingBuffer, threadCount int, trueCount int) {
 	ints := setup()
 
 	counter := int32(0)
