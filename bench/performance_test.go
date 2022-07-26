@@ -1,19 +1,31 @@
 package bench
 
 import (
+	"fmt"
 	"github.com/LENSHOOD/go-lock-free-ring-buffer"
 	"math/rand"
+	"os"
 	"runtime"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"testing"
 )
 
 var (
-	capacity        uint64 = 16
-	threadNum              = runtime.GOMAXPROCS(0)
-	mpmcProducerNum        = runtime.GOMAXPROCS(0) / 2
+	capacity        = toUint64(os.Getenv("LFRING_BENCH_CAP"))
+	threadNum       = runtime.GOMAXPROCS(0)
+	mpmcProducerNum = runtime.GOMAXPROCS(0) / 2
 )
+
+func toUint64(s string) (ret uint64) {
+	ret, err := strconv.ParseUint(s, 10, 64)
+	if err != nil {
+		panic(fmt.Sprintf("wrong param: \"%s\"", s))
+	}
+
+	return
+}
 
 func BenchmarkNodeMPMC(b *testing.B) {
 	mpmcRB := lfring.New(lfring.NodeBased, capacity)
