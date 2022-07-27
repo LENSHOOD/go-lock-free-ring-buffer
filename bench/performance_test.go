@@ -14,9 +14,13 @@ import (
 
 var (
 	capacity        = toUint64(os.Getenv("LFRING_BENCH_CAP"))
-	threadNum       = runtime.GOMAXPROCS(0)
-	mpmcProducerNum = runtime.GOMAXPROCS(0) / 2
+	threadNum       = toInt(os.Getenv("LFRING_BENCH_THREAD_NUM"))
+	mpmcProducerNum = toInt(os.Getenv("LFRING_BENCH_PRODUCER_NUM"))
 )
+
+func toInt(s string) (ret int) {
+	return int(toUint64(s))
+}
 
 func toUint64(s string) (ret uint64) {
 	ret, err := strconv.ParseUint(s, 10, 64)
@@ -131,27 +135,34 @@ var controlCh = make(chan bool)
 var wg sync.WaitGroup
 
 func manage(b *testing.B, threadCount int, trueCount int) {
-	b.SetParallelism(threadCount / runtime.GOMAXPROCS(0))
-
-	wg.Add(1)
-	for i := 0; i < threadCount; i++ {
-		if trueCount > 0 {
-			controlCh <- true
-			trueCount--
-		} else {
-			controlCh <- false
-		}
+	p := runtime.GOMAXPROCS(0)
+	if threadCount < p {
+		runtime.GOMAXPROCS(threadCount)
+	} else {
+		b.SetParallelism(threadCount / p)
 	}
 
-	b.ResetTimer()
-	wg.Done()
+	go func() {
+		wg.Add(1)
+		for i := 0; i < threadCount; i++ {
+			if trueCount > 0 {
+				controlCh <- true
+				trueCount--
+			} else {
+				controlCh <- false
+			}
+		}
+
+		b.ResetTimer()
+		wg.Done()
+	}()
 }
 
 func mpmcBenchmark(b *testing.B, buffer lfring.RingBuffer, threadCount int, trueCount int) {
 	ints := setup()
 
 	counter := int32(0)
-	go manage(b, threadCount, trueCount)
+	manage(b, threadCount, trueCount)
 	b.RunParallel(func(pb *testing.PB) {
 		producer := <-controlCh
 		wg.Wait()
@@ -177,7 +188,7 @@ func mpscBenchmark(b *testing.B, buffer lfring.RingBuffer, threadCount int, true
 	consumer := func(v interface{}) {
 		atomic.AddInt32(&counter, 1)
 	}
-	go manage(b, threadCount, trueCount)
+	manage(b, threadCount, trueCount)
 	b.RunParallel(func(pb *testing.PB) {
 		producer := <-controlCh
 		wg.Wait()
@@ -198,7 +209,7 @@ func spmcBenchmark(b *testing.B, buffer lfring.RingBuffer, threadCount int, true
 	ints := setup()
 
 	counter := int32(0)
-	go manage(b, threadCount, trueCount)
+	manage(b, threadCount, trueCount)
 	b.RunParallel(func(pb *testing.PB) {
 		producer := <-controlCh
 		wg.Wait()
@@ -229,7 +240,7 @@ func spscBenchmark(b *testing.B, buffer lfring.RingBuffer, threadCount int, true
 	consumer := func(v interface{}) {
 		atomic.AddInt32(&counter, 1)
 	}
-	go manage(b, threadCount, trueCount)
+	manage(b, threadCount, trueCount)
 	b.RunParallel(func(pb *testing.PB) {
 		producer := <-controlCh
 		wg.Wait()

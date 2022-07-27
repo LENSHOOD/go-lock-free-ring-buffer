@@ -29,6 +29,7 @@ func TestGenReport(t *testing.T) {
 	var currChart *lineChart = nil
 	for dataScanner.Scan() {
 		line := dataScanner.Text()
+		// title
 		if titleP.MatchString(line) {
 			groups := titleP.FindStringSubmatch(line)
 			title := groups[1]
@@ -42,6 +43,7 @@ func TestGenReport(t *testing.T) {
 			currChart = NewLineChart(title, xAxisName, yAxisName)
 		}
 
+		// add points
 		if pointP.MatchString(line) {
 			groups := pointP.FindStringSubmatch(line)
 			lineName := groups[1]
@@ -52,6 +54,7 @@ func TestGenReport(t *testing.T) {
 			currChart.addPoint(lineName, x, y)
 		}
 
+		// gen report
 		if endP.MatchString(line) {
 			throwErr(t, currChart.genChart(fmt.Sprintf("%d.html", ordinal)))
 			ordinal++
