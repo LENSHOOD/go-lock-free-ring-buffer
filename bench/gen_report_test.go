@@ -32,12 +32,14 @@ func TestGenReport(t *testing.T) {
 		if titleP.MatchString(line) {
 			groups := titleP.FindStringSubmatch(line)
 			title := groups[1]
+			xAxisName := groups[2]
+			yAxisName := groups[3]
 
 			if currChart != nil {
 				throwErrWithReason(t, "previous chart haven't been end, new chart title: "+title)
 			}
 
-			currChart = NewLineChart(title)
+			currChart = NewLineChart(title, xAxisName, yAxisName)
 		}
 
 		if pointP.MatchString(line) {
@@ -59,7 +61,7 @@ func TestGenReport(t *testing.T) {
 }
 
 const (
-	TitlePattern = "#title=(.+)"
+	TitlePattern = "#title=(.+),xAxis=(.+),yAxis=(.+)"
 	PointPattern = `(.+)=\(([+-]?[0-9]*[.]?[0-9]+),([+-]?[0-9]*[.]?[0-9]+)\)`
 	EndPattern   = "#end"
 )
@@ -79,8 +81,10 @@ func throwErrWithReason(t *testing.T, reason string) {
 }
 
 type lineChart struct {
-	title  string
-	series map[string][]point
+	title     string
+	xAxisName string
+	yAxisName string
+	series    map[string][]point
 }
 
 type point struct {
@@ -88,10 +92,12 @@ type point struct {
 	y float64
 }
 
-func NewLineChart(title string) *lineChart {
+func NewLineChart(title string, xAxisName string, yAxisName string) *lineChart {
 	return &lineChart{
-		title:  title,
-		series: make(map[string][]point),
+		title,
+		xAxisName,
+		yAxisName,
+		make(map[string][]point),
 	}
 }
 
@@ -123,7 +129,10 @@ func (l *lineChart) genChart(htmlFileName string) error {
 
 	line.SetGlobalOptions(
 		charts.WithTitleOpts(opts.Title{Title: l.title}),
+		charts.WithXAxisOpts(opts.XAxis{Name: l.xAxisName}),
+		charts.WithYAxisOpts(opts.YAxis{Name: l.yAxisName}),
 		charts.WithLegendOpts(opts.Legend{Data: legend, Show: true}),
+		charts.WithTooltipOpts(opts.Tooltip{Trigger: "axis", Show: true}),
 	)
 
 	f, err := os.Create(htmlFileName)
@@ -139,7 +148,7 @@ func (l *lineChart) genChart(htmlFileName string) error {
 }
 
 func TestGenChart(t *testing.T) {
-	chart := NewLineChart("test chart")
+	chart := NewLineChart("test chart", "xAxis", "yAxis")
 	chart.addPoint("L1", 3, 45.33)
 	chart.addPoint("L1", 6, 28.15)
 	chart.addPoint("L1", 9, 77.7)
