@@ -23,9 +23,9 @@ func toInt(s string) (ret int) {
 }
 
 func toUint64(s string) (ret uint64) {
-	ret, err := strconv.ParseUint(s, 10, 64)
+	ret, err := strconv.ParseUint(s, 0, 64)
 	if err != nil {
-		panic(fmt.Sprintf("wrong param: \"%s\"", s))
+		panic(fmt.Sprintf("wrong param: \"%s\", please check ENV", s))
 	}
 
 	return
@@ -178,7 +178,7 @@ func mpmcBenchmark(b *testing.B, buffer lfring.RingBuffer, threadCount int, true
 	})
 
 	b.StopTimer()
-	b.Logf("Success handover count: %d", counter)
+	b.ReportMetric(float64(counter), "handovers")
 }
 
 func mpscBenchmark(b *testing.B, buffer lfring.RingBuffer, threadCount int, trueCount int) {
@@ -202,7 +202,7 @@ func mpscBenchmark(b *testing.B, buffer lfring.RingBuffer, threadCount int, true
 	})
 
 	b.StopTimer()
-	b.Logf("Success handover count: %d", counter)
+	b.ReportMetric(float64(counter), "handovers")
 }
 
 func spmcBenchmark(b *testing.B, buffer lfring.RingBuffer, threadCount int, trueCount int) {
@@ -230,7 +230,7 @@ func spmcBenchmark(b *testing.B, buffer lfring.RingBuffer, threadCount int, true
 	})
 
 	b.StopTimer()
-	b.Logf("Success handover count: %d", counter)
+	b.ReportMetric(float64(counter), "handovers")
 }
 
 func spscBenchmark(b *testing.B, buffer lfring.RingBuffer, threadCount int, trueCount int) {
@@ -259,5 +259,5 @@ func spscBenchmark(b *testing.B, buffer lfring.RingBuffer, threadCount int, true
 	})
 
 	b.StopTimer()
-	b.Logf("Success handover count: %d", counter)
+	b.ReportMetric(float64(counter), "handovers")
 }
