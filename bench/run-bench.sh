@@ -13,7 +13,7 @@ capacities=(2 4 8 16 32 64 128 256 512 1024)
 for cap in "${capacities[@]}"
 do
    export LFRING_BENCH_CAP=$cap
-   go test -run "^$" -bench "^.+MPMC$" -benchtime=10s -count=10 | \
+   go test -run "^$" -bench "^.+MPMC$" -benchtime=1s -count=100 | \
     awk -v cap="$cap" '/NodeMPMC.+handovers/ || /HybridMPMC.+handovers/ || /ChannelMPMC.+handovers/ { printf "%s=(%d,%f)\n", $1, cap, $5 }' \
     >> $LFRING_BENCH_CHARTS_FILE
 done
@@ -29,7 +29,7 @@ for t in "${threads[@]}"
 do
    export LFRING_BENCH_THREAD_NUM=$t
    export LFRING_BENCH_PRODUCER_NUM=$((t/2))
-   go test -run "^$" -bench "^.+MPMC$" -benchtime=10s -count=10 | \
+   go test -run "^$" -bench "^.+MPMC$" -benchtime=1s -count=100 | \
     awk -v thread="$t" '/NodeMPMC.+handovers/ || /HybridMPMC.+handovers/ || /ChannelMPMC.+handovers/ { printf "%s=(%d,%f)\n", $1, thread, $5 }' \
     >> $LFRING_BENCH_CHARTS_FILE
 done
@@ -45,7 +45,7 @@ producers=(1 2 3 4 6 8 9 10 11)
 for p in "${producers[@]}"
 do
    export LFRING_BENCH_PRODUCER_NUM=$p
-   go test -run "^$" -bench "^.+MPMC$" -benchtime=10s -count=10 | \
+   go test -run "^$" -bench "^.+MPMC$" -benchtime=1s -count=100 | \
     awk -v producer="$p" '/NodeMPMC.+handovers/ || /HybridMPMC.+handovers/ || /ChannelMPMC.+handovers/ { printf "%s=(%d,%f)\n", $1, producer, $5 }' \
     >> $LFRING_BENCH_CHARTS_FILE
 done

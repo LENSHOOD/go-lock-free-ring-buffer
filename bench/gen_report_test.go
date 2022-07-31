@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/go-echarts/go-echarts/v2/charts"
 	"github.com/go-echarts/go-echarts/v2/opts"
+	"math"
 	"os"
 	"regexp"
 	"sort"
@@ -98,15 +99,6 @@ func (p points) addPoint(x float64, y float64) {
 }
 
 func (p points) getXAxisAndYAxisData() (xAxisData []string, yAxisData []opts.LineData) {
-	getMean := func(ys []float64) (y float64) {
-		for _, v := range ys {
-			y += v
-		}
-
-		y = y / float64(len(ys))
-		return
-	}
-
 	var sortedXs []float64
 	for x, _ := range p {
 		sortedXs = append(sortedXs, x)
@@ -115,10 +107,45 @@ func (p points) getXAxisAndYAxisData() (xAxisData []string, yAxisData []opts.Lin
 
 	for _, x := range sortedXs {
 		xAxisData = append(xAxisData, fmt.Sprintf("%.0f", x))
-		yAxisData = append(yAxisData, opts.LineData{Value: getMean(p[x])})
+		yAxisData = append(yAxisData, opts.LineData{Value: meanWithIn3Sigma(p[x])})
 	}
 
 	return
+}
+
+func meanWithIn3Sigma(vs []float64) float64 {
+	calMean := func(vs []float64) (mean float64) {
+		for _, v := range vs {
+			mean += v
+		}
+
+		mean = mean / float64(len(vs))
+		return
+	}
+
+	calSigma := func(vs []float64, mean float64) (sigma float64) {
+		sum := float64(0)
+		for _, v := range vs {
+			sum += math.Pow(v-mean, 2)
+		}
+
+		sigma = math.Sqrt(sum / float64(len(vs)))
+		return
+	}
+
+	mean := calMean(vs)
+	sigma := calSigma(vs, mean)
+
+	i := 0
+	sum := float64(0)
+	for _, v := range vs {
+		if v-mean < 3*sigma {
+			sum += v
+			i++
+		}
+	}
+
+	return sum / float64(i)
 }
 
 func NewLineChart(title string, xAxisName string, yAxisName string) *lineChart {
