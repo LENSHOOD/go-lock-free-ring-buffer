@@ -135,12 +135,6 @@ var controlCh = make(chan bool)
 var wg sync.WaitGroup
 
 func manage(b *testing.B, threadCount int, trueCount int) {
-	//p := runtime.GOMAXPROCS(0)
-	//if threadCount < p {
-	//	runtime.GOMAXPROCS(threadCount)
-	//} else {
-	//	b.SetParallelism(threadCount / p)
-	//}
 	runtime.GOMAXPROCS(threadCount)
 
 	go func() {
