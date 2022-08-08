@@ -124,3 +124,7 @@ func (r *nodeBased) SingleConsumerPoll(valueConsumer func(interface{})) {
 		}
 	}
 }
+
+func (r *nodeBased) SingleConsumerPollVec(ret []interface{}) (end uint64) {
+	return
+}

@@ -83,20 +83,106 @@ func (s *MySuite) TestMPSCConcurrencyRW(c *C) {
 	go offerPunctuation(buffer)
 
 	wg.Wait()
-	for !buffer.isEmpty(atomic.LoadUint64(&buffer.tail), atomic.LoadUint64(&buffer.head)) {
+	for atomic.LoadUint64(&buffer.head) < 24 {
 		runtime.Gosched()
 	}
 	close(done)
 	finishWg.Wait()
 
 	// then
-	countSet := make(map[interface{}]bool)
-	for i := 0; i < len(resultArr); i++ {
-		if resultArr[i] != nil {
-			countSet[resultArr[i]] = true
-		}
+	countSet := make(map[interface{}]int)
+	drainToSet(resultArr, countSet)
+	if len(countSet) != 24 {
+		c.Assert(len(countSet), Equals, 24)
 	}
 	c.Assert(len(countSet), Equals, 24)
+	for _, v := range countSet {
+		c.Assert(v, Equals, 1)
+	}
+}
+
+func (s *MySuite) TestMPSCVecConcurrencyRW(c *C) {
+	// given
+	source := initDataSource()
+
+	capacity := 4
+	buffer := New(Classical, uint64(capacity)).(*classical)
+
+	var wg sync.WaitGroup
+	offerNumber := func(buffer RingBuffer) {
+		defer wg.Done()
+		for i := 0; i < 8; i++ {
+			v := source[i]
+			for !buffer.Offer(&v) {
+			}
+		}
+	}
+
+	offerAlphabet := func(buffer RingBuffer) {
+		defer wg.Done()
+		for i := 0; i < 8; i++ {
+			v := source[i+8]
+			for !buffer.Offer(&v) {
+			}
+		}
+	}
+
+	offerPunctuation := func(buffer RingBuffer) {
+		defer wg.Done()
+		for i := 0; i < 8; i++ {
+			v := source[i+16]
+			for !buffer.Offer(&v) {
+			}
+		}
+	}
+
+	resultArr := make([]interface{}, 24)
+	var finishWg sync.WaitGroup
+	consumer := func(buffer RingBuffer, ch chan struct{}) {
+		counter := 0
+		ret := make([]interface{}, capacity)
+		finishWg.Add(1)
+		for {
+			select {
+			case <-ch:
+				finishWg.Done()
+				return
+			default:
+				validCnt := buffer.SingleConsumerPollVec(ret)
+				for i := uint64(0); i < validCnt; i++ {
+					resultArr[counter] = ret[i]
+					counter++
+				}
+			}
+		}
+	}
+
+	// when
+	done := make(chan struct{})
+	wg.Add(3)
+	go consumer(buffer, done)
+	go offerNumber(buffer)
+	go offerAlphabet(buffer)
+	go offerPunctuation(buffer)
+
+	wg.Wait()
+	for atomic.LoadUint64(&buffer.head) < 24 {
+		runtime.Gosched()
+	}
+
+	close(done)
+	finishWg.Wait()
+
+	// then
+	countSet := make(map[interface{}]int)
+	drainToSet(resultArr, countSet)
+	if len(countSet) != 24 {
+		c.Assert(len(countSet), Equals, 24)
+	}
+	c.Assert(len(countSet), Equals, 24)
+	for _, v := range countSet {
+		c.Assert(v, Equals, 1)
+	}
 }
 
 func (s *MySuite) TestSPMCConcurrencyRW(c *C) {

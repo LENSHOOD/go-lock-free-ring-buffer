@@ -110,6 +110,29 @@ func (r *classical) SingleConsumerPoll(valueConsumer func(interface{})) {
 	atomic.StoreUint64(&r.head, currHead-1)
 }
 
+func (r *classical) SingleConsumerPollVec(ret []interface{}) (validCnt uint64) {
+	oldTail := atomic.LoadUint64(&r.tail)
+	oldHead := r.head
+	if r.isEmpty(oldTail, oldHead) {
+		return
+	}
+
+	currHead := oldHead + 1
+	for ; currHead <= oldTail; currHead++ {
+		currNode := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[currHead&r.mask])))
+		// not published yet
+		if currNode == nil {
+			break
+		}
+		ret[currHead-oldHead-1] = *(*interface{})(currNode)
+		atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[currHead&r.mask])), nil)
+	}
+
+	atomic.StoreUint64(&r.head, currHead-1)
+
+	return currHead - oldHead - 1
+}
+
 // isFull check whether buffer is full by compare (tail - head).
 // Because of none-sync read of tail and head, the tail maybe smaller than head(which is
 // never happened in the view of buffer):

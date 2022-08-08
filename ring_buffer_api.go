@@ -6,6 +6,7 @@ type RingBuffer interface {
 	Poll() (value interface{}, success bool)
 	SingleProducerOffer(valueSupplier func() (v interface{}, finish bool))
 	SingleConsumerPoll(valueConsumer func(interface{}))
+	SingleConsumerPollVec(ret []interface{}) (validCnt uint64)
 }
 
 // BufferType contains different type names of ring buffer

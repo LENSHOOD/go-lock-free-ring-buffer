@@ -56,6 +56,11 @@ func BenchmarkHybridMPSC(b *testing.B) {
 	mpscBenchmark(b, mpscRB, threadNum, threadNum-1)
 }
 
+func BenchmarkHybridMPSCVec(b *testing.B) {
+	mpscRB := lfring.New(lfring.Classical, capacity)
+	mpscBenchmarkVec(b, mpscRB, threadNum, threadNum-1)
+}
+
 func BenchmarkHybridSPMCControl(b *testing.B) {
 	mpscRB := lfring.New(lfring.Classical, capacity)
 	mpmcBenchmark(b, mpscRB, threadNum, 1)
@@ -120,6 +125,10 @@ func (r *fakeBuffer) SingleProducerOffer(valueSupplier func() (v interface{}, fi
 func (r *fakeBuffer) SingleConsumerPoll(valueConsumer func(interface{})) {
 	v := <-r.ch
 	valueConsumer(v)
+}
+
+func (r *fakeBuffer) SingleConsumerPollVec(ret []interface{}) (validCnt uint64) {
+	return
 }
 
 func setup() []int {
@@ -192,6 +201,29 @@ func mpscBenchmark(b *testing.B, buffer lfring.RingBuffer, threadCount int, true
 				buffer.Offer(ints[(i & (len(ints) - 1))])
 			} else {
 				buffer.SingleConsumerPoll(consumer)
+			}
+		}
+	})
+
+	b.StopTimer()
+	b.ReportMetric(float64(counter), "handovers")
+}
+
+func mpscBenchmarkVec(b *testing.B, buffer lfring.RingBuffer, threadCount int, trueCount int) {
+	ints := setup()
+
+	counter := int32(0)
+	ret := make([]interface{}, capacity, capacity)
+	manage(b, threadCount, trueCount)
+	b.RunParallel(func(pb *testing.PB) {
+		producer := <-controlCh
+		wg.Wait()
+		for i := 1; pb.Next(); i++ {
+			if producer {
+				buffer.Offer(ints[(i & (len(ints) - 1))])
+			} else {
+				validCnt := buffer.SingleConsumerPollVec(ret)
+				atomic.AddInt32(&counter, int32(validCnt))
 			}
 		}
 	})
