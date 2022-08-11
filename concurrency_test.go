@@ -9,14 +9,14 @@ import (
 )
 
 func (s *MySuite) TestNodeMpmcConcurrencyRW(c *C) {
-	concurrencyRW(c, NodeBased, func(buffer RingBuffer) uint64 {
-		return atomic.LoadUint64(&buffer.(*nodeBased).head)
+	concurrencyRW(c, NodeBased, func(buffer RingBuffer[*string]) uint64 {
+		return atomic.LoadUint64(&buffer.(*nodeBased[*string]).head)
 	})
 }
 
 func (s *MySuite) TestHybridMpmcConcurrencyRW(c *C) {
-	concurrencyRW(c, Classical, func(buffer RingBuffer) uint64 {
-		return atomic.LoadUint64(&buffer.(*classical).head)
+	concurrencyRW(c, Classical, func(buffer RingBuffer[*string]) uint64 {
+		return atomic.LoadUint64(&buffer.(*classical[*string]).head)
 	})
 }
 
@@ -25,10 +25,10 @@ func (s *MySuite) TestMPSCConcurrencyRW(c *C) {
 	source := initDataSource()
 
 	capacity := 4
-	buffer := New(Classical, uint64(capacity)).(*classical)
+	buffer := New[*string](Classical, uint64(capacity)).(*classical[*string])
 
 	var wg sync.WaitGroup
-	offerNumber := func(buffer RingBuffer) {
+	offerNumber := func(buffer RingBuffer[*string]) {
 		defer wg.Done()
 		for i := 0; i < 8; i++ {
 			v := source[i]
@@ -37,7 +37,7 @@ func (s *MySuite) TestMPSCConcurrencyRW(c *C) {
 		}
 	}
 
-	offerAlphabet := func(buffer RingBuffer) {
+	offerAlphabet := func(buffer RingBuffer[*string]) {
 		defer wg.Done()
 		for i := 0; i < 8; i++ {
 			v := source[i+8]
@@ -46,7 +46,7 @@ func (s *MySuite) TestMPSCConcurrencyRW(c *C) {
 		}
 	}
 
-	offerPunctuation := func(buffer RingBuffer) {
+	offerPunctuation := func(buffer RingBuffer[*string]) {
 		defer wg.Done()
 		for i := 0; i < 8; i++ {
 			v := source[i+16]
@@ -55,9 +55,9 @@ func (s *MySuite) TestMPSCConcurrencyRW(c *C) {
 		}
 	}
 
-	resultArr := make([]interface{}, 24)
+	resultArr := make([]*string, 24)
 	var finishWg sync.WaitGroup
-	consumer := func(buffer RingBuffer, ch chan struct{}) {
+	consumer := func(buffer RingBuffer[*string], ch chan struct{}) {
 		counter := 0
 		finishWg.Add(1)
 		for {
@@ -66,7 +66,7 @@ func (s *MySuite) TestMPSCConcurrencyRW(c *C) {
 				finishWg.Done()
 				return
 			default:
-				buffer.SingleConsumerPoll(func(v interface{}) {
+				buffer.SingleConsumerPoll(func(v *string) {
 					resultArr[counter] = v
 					counter++
 				})
@@ -90,7 +90,7 @@ func (s *MySuite) TestMPSCConcurrencyRW(c *C) {
 	finishWg.Wait()
 
 	// then
-	countSet := make(map[interface{}]int)
+	countSet := make(map[*string]int)
 	drainToSet(resultArr, countSet)
 	if len(countSet) != 24 {
 		c.Assert(len(countSet), Equals, 24)
@@ -106,10 +106,10 @@ func (s *MySuite) TestMPSCVecConcurrencyRW(c *C) {
 	source := initDataSource()
 
 	capacity := 4
-	buffer := New(Classical, uint64(capacity)).(*classical)
+	buffer := New[*string](Classical, uint64(capacity)).(*classical[*string])
 
 	var wg sync.WaitGroup
-	offerNumber := func(buffer RingBuffer) {
+	offerNumber := func(buffer RingBuffer[*string]) {
 		defer wg.Done()
 		for i := 0; i < 8; i++ {
 			v := source[i]
@@ -118,7 +118,7 @@ func (s *MySuite) TestMPSCVecConcurrencyRW(c *C) {
 		}
 	}
 
-	offerAlphabet := func(buffer RingBuffer) {
+	offerAlphabet := func(buffer RingBuffer[*string]) {
 		defer wg.Done()
 		for i := 0; i < 8; i++ {
 			v := source[i+8]
@@ -127,7 +127,7 @@ func (s *MySuite) TestMPSCVecConcurrencyRW(c *C) {
 		}
 	}
 
-	offerPunctuation := func(buffer RingBuffer) {
+	offerPunctuation := func(buffer RingBuffer[*string]) {
 		defer wg.Done()
 		for i := 0; i < 8; i++ {
 			v := source[i+16]
@@ -136,11 +136,11 @@ func (s *MySuite) TestMPSCVecConcurrencyRW(c *C) {
 		}
 	}
 
-	resultArr := make([]interface{}, 24)
+	resultArr := make([]*string, 24)
 	var finishWg sync.WaitGroup
-	consumer := func(buffer RingBuffer, ch chan struct{}) {
+	consumer := func(buffer RingBuffer[*string], ch chan struct{}) {
 		counter := 0
-		ret := make([]interface{}, capacity)
+		ret := make([]*string, capacity)
 		finishWg.Add(1)
 		for {
 			select {
@@ -174,7 +174,7 @@ func (s *MySuite) TestMPSCVecConcurrencyRW(c *C) {
 	finishWg.Wait()
 
 	// then
-	countSet := make(map[interface{}]int)
+	countSet := make(map[*string]int)
 	drainToSet(resultArr, countSet)
 	if len(countSet) != 24 {
 		c.Assert(len(countSet), Equals, 24)
@@ -191,20 +191,20 @@ func (s *MySuite) TestSPMCConcurrencyRW(c *C) {
 	source := initDataSource()
 
 	capacity := 4
-	buffer := New(Classical, uint64(capacity)).(*classical)
+	buffer := New[*string](Classical, uint64(capacity)).(*classical[*string])
 
 	var wg sync.WaitGroup
-	producer := func(buffer RingBuffer) {
+	producer := func(buffer RingBuffer[*string]) {
 		defer wg.Done()
 		i := 0
 		for {
-			buffer.SingleProducerOffer(func() (v interface{}, finish bool) {
+			buffer.SingleProducerOffer(func() (v *string, finish bool) {
 				if i == len(source) {
 					return nil, true
 				}
-				v = source[i]
+				v = &source[i]
 				i++
-				return &v, false
+				return
 			})
 
 			if i == 24 {
@@ -214,7 +214,7 @@ func (s *MySuite) TestSPMCConcurrencyRW(c *C) {
 	}
 
 	var finishWg sync.WaitGroup
-	consumer := func(buffer RingBuffer, ch chan struct{}, outputArr []interface{}) {
+	consumer := func(buffer RingBuffer[*string], ch chan struct{}, outputArr []*string) {
 		counter := 0
 		for {
 			select {
@@ -233,9 +233,9 @@ func (s *MySuite) TestSPMCConcurrencyRW(c *C) {
 	// when
 	done := make(chan struct{})
 	finishWg.Add(3)
-	resultArr1 := make([]interface{}, 24)
-	resultArr2 := make([]interface{}, 24)
-	resultArr3 := make([]interface{}, 24)
+	resultArr1 := make([]*string, 24)
+	resultArr2 := make([]*string, 24)
+	resultArr3 := make([]*string, 24)
 	go consumer(buffer, done, resultArr1)
 	go consumer(buffer, done, resultArr2)
 	go consumer(buffer, done, resultArr3)
@@ -251,7 +251,7 @@ func (s *MySuite) TestSPMCConcurrencyRW(c *C) {
 	finishWg.Wait()
 
 	// then
-	countSet := make(map[interface{}]int)
+	countSet := make(map[*string]int)
 	drainToSet(resultArr1, countSet)
 	drainToSet(resultArr2, countSet)
 	drainToSet(resultArr3, countSet)
@@ -264,15 +264,15 @@ func (s *MySuite) TestSPMCConcurrencyRW(c *C) {
 	}
 }
 
-func concurrencyRW(c *C, t BufferType, getHead func(buffer RingBuffer) uint64) {
+func concurrencyRW(c *C, t BufferType, getHead func(buffer RingBuffer[*string]) uint64) {
 	// given
 	source := initDataSource()
 
 	capacity := 4
-	buffer := New(t, uint64(capacity))
+	buffer := New[*string](t, uint64(capacity))
 
 	var wg sync.WaitGroup
-	offerNumber := func(buffer RingBuffer) {
+	offerNumber := func(buffer RingBuffer[*string]) {
 		defer wg.Done()
 		for i := 0; i < 8; i++ {
 			v := source[i]
@@ -281,7 +281,7 @@ func concurrencyRW(c *C, t BufferType, getHead func(buffer RingBuffer) uint64) {
 		}
 	}
 
-	offerAlphabet := func(buffer RingBuffer) {
+	offerAlphabet := func(buffer RingBuffer[*string]) {
 		defer wg.Done()
 		for i := 0; i < 8; i++ {
 			v := source[i+8]
@@ -290,7 +290,7 @@ func concurrencyRW(c *C, t BufferType, getHead func(buffer RingBuffer) uint64) {
 		}
 	}
 
-	offerPunctuation := func(buffer RingBuffer) {
+	offerPunctuation := func(buffer RingBuffer[*string]) {
 		defer wg.Done()
 		for i := 0; i < 8; i++ {
 			v := source[i+16]
@@ -300,7 +300,7 @@ func concurrencyRW(c *C, t BufferType, getHead func(buffer RingBuffer) uint64) {
 	}
 
 	var finishWg sync.WaitGroup
-	consumer := func(buffer RingBuffer, ch chan struct{}, outputArr []interface{}) {
+	consumer := func(buffer RingBuffer[*string], ch chan struct{}, outputArr []*string) {
 		counter := 0
 		for {
 			select {
@@ -319,9 +319,9 @@ func concurrencyRW(c *C, t BufferType, getHead func(buffer RingBuffer) uint64) {
 	// when
 	done := make(chan struct{})
 	finishWg.Add(3)
-	resultArr1 := make([]interface{}, 24)
-	resultArr2 := make([]interface{}, 24)
-	resultArr3 := make([]interface{}, 24)
+	resultArr1 := make([]*string, 24)
+	resultArr2 := make([]*string, 24)
+	resultArr3 := make([]*string, 24)
 	go consumer(buffer, done, resultArr1)
 	go consumer(buffer, done, resultArr2)
 	go consumer(buffer, done, resultArr3)
@@ -339,7 +339,7 @@ func concurrencyRW(c *C, t BufferType, getHead func(buffer RingBuffer) uint64) {
 	finishWg.Wait()
 
 	// then
-	countSet := make(map[interface{}]int)
+	countSet := make(map[*string]int)
 	drainToSet(resultArr1, countSet)
 	drainToSet(resultArr2, countSet)
 	drainToSet(resultArr3, countSet)
@@ -352,7 +352,7 @@ func concurrencyRW(c *C, t BufferType, getHead func(buffer RingBuffer) uint64) {
 	}
 }
 
-func drainToSet(srcArr []interface{}, descSet map[interface{}]int) {
+func drainToSet(srcArr []*string, descSet map[*string]int) {
 	for i := 0; i < len(srcArr); i++ {
 		if srcArr[i] != nil {
 			if v, exist := descSet[srcArr[i]]; exist {

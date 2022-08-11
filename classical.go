@@ -5,25 +5,25 @@ import (
 	"unsafe"
 )
 
-type classical struct {
+type classical[T any] struct {
 	head     uint64
 	tail     uint64
 	capacity uint64
 	mask     uint64
-	element  []interface{}
+	element  []T
 }
 
-func newClassical(capacity uint64) RingBuffer {
-	return &classical{
+func newClassical[T any](capacity uint64) RingBuffer[T] {
+	return &classical[T]{
 		head:     uint64(0),
 		tail:     uint64(0),
 		capacity: capacity,
 		mask:     capacity - 1,
-		element:  make([]interface{}, capacity),
+		element:  make([]T, capacity),
 	}
 }
 
-func (r *classical) Offer(value interface{}) (success bool) {
+func (r *classical[T]) Offer(value T) (success bool) {
 	oldTail := atomic.LoadUint64(&r.tail)
 	oldHead := atomic.LoadUint64(&r.head)
 	if r.isFull(oldTail, oldHead) {
@@ -44,7 +44,7 @@ func (r *classical) Offer(value interface{}) (success bool) {
 	return true
 }
 
-func (r *classical) SingleProducerOffer(valueSupplier func() (v interface{}, finish bool)) {
+func (r *classical[T]) SingleProducerOffer(valueSupplier func() (v T, finish bool)) {
 	oldTail := r.tail
 	oldHead := atomic.LoadUint64(&r.head)
 	if r.isFull(oldTail, oldHead) {
@@ -68,28 +68,28 @@ func (r *classical) SingleProducerOffer(valueSupplier func() (v interface{}, fin
 	atomic.StoreUint64(&r.tail, newTail-1)
 }
 
-func (r *classical) Poll() (value interface{}, success bool) {
+func (r *classical[T]) Poll() (value T, success bool) {
 	oldTail := atomic.LoadUint64(&r.tail)
 	oldHead := atomic.LoadUint64(&r.head)
 	if r.isEmpty(oldTail, oldHead) {
-		return nil, false
+		return
 	}
 
 	newHead := oldHead + 1
 	headNode := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newHead&r.mask])))
 	// not published yet
 	if headNode == nil {
-		return nil, false
+		return
 	}
 	if !atomic.CompareAndSwapUint64(&r.head, oldHead, newHead) {
-		return nil, false
+		return
 	}
 	atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newHead&r.mask])), nil)
 
-	return *(*interface{})(headNode), true
+	return *(*T)(headNode), true
 }
 
-func (r *classical) SingleConsumerPoll(valueConsumer func(interface{})) {
+func (r *classical[T]) SingleConsumerPoll(valueConsumer func(T)) {
 	oldTail := atomic.LoadUint64(&r.tail)
 	oldHead := r.head
 	if r.isEmpty(oldTail, oldHead) {
@@ -103,14 +103,14 @@ func (r *classical) SingleConsumerPoll(valueConsumer func(interface{})) {
 		if currNode == nil {
 			break
 		}
-		valueConsumer(*(*interface{})(currNode))
+		valueConsumer(*(*T)(currNode))
 		atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[currHead&r.mask])), nil)
 	}
 
 	atomic.StoreUint64(&r.head, currHead-1)
 }
 
-func (r *classical) SingleConsumerPollVec(ret []interface{}) (validCnt uint64) {
+func (r *classical[T]) SingleConsumerPollVec(ret []T) (validCnt uint64) {
 	oldTail := atomic.LoadUint64(&r.tail)
 	oldHead := r.head
 	if r.isEmpty(oldTail, oldHead) {
@@ -124,7 +124,7 @@ func (r *classical) SingleConsumerPollVec(ret []interface{}) (validCnt uint64) {
 		if currNode == nil {
 			break
 		}
-		ret[currHead-oldHead-1] = *(*interface{})(currNode)
+		ret[currHead-oldHead-1] = *(*T)(currNode)
 		atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[currHead&r.mask])), nil)
 	}
 
@@ -143,7 +143,7 @@ func (r *classical) SingleConsumerPollVec(ret []interface{}) (validCnt uint64) {
 //
 // Hence, once tail < head means the tail is far behind the real (which means CAS-tail will
 // definitely fail), so we just return full to the Offer caller let it try again.
-func (r *classical) isFull(tail uint64, head uint64) bool {
+func (r *classical[T]) isFull(tail uint64, head uint64) bool {
 	return tail-head >= r.capacity-1
 }
 
@@ -158,6 +158,6 @@ func (r *classical) isFull(tail uint64, head uint64) bool {
 //
 // To keep the correctness of ring buffer, we need to return true when tail < head and
 // tail == head.
-func (r *classical) isEmpty(tail uint64, head uint64) bool {
+func (r *classical[T]) isEmpty(tail uint64, head uint64) bool {
 	return (tail < head) || (tail-head == 0)
 }

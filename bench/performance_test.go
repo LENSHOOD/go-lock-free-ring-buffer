@@ -32,70 +32,71 @@ func toUint64(s string) (ret uint64) {
 }
 
 func BenchmarkNodeMPMC(b *testing.B) {
-	mpmcRB := lfring.New(lfring.NodeBased, capacity)
+	mpmcRB := lfring.New[int](lfring.NodeBased, capacity)
 	mpmcBenchmark(b, mpmcRB, threadNum, mpmcProducerNum)
 }
 
 func BenchmarkHybridMPMC(b *testing.B) {
-	mpscRB := lfring.New(lfring.Classical, capacity)
+	mpscRB := lfring.New[int](lfring.Classical, capacity)
 	mpmcBenchmark(b, mpscRB, threadNum, mpmcProducerNum)
 }
 
 func BenchmarkChannelMPMC(b *testing.B) {
-	fakeB := newFakeBuffer(capacity)
+	fakeB := newFakeBuffer[int](capacity)
 	mpmcBenchmark(b, fakeB, threadNum, mpmcProducerNum)
 }
 
 func BenchmarkHybridMPSCControl(b *testing.B) {
-	mpscRB := lfring.New(lfring.Classical, capacity)
+	mpscRB := lfring.New[int](lfring.Classical, capacity)
 	mpmcBenchmark(b, mpscRB, threadNum, threadNum-1)
 }
 
 func BenchmarkHybridMPSC(b *testing.B) {
-	mpscRB := lfring.New(lfring.Classical, capacity)
+	mpscRB := lfring.New[int](lfring.Classical, capacity)
 	mpscBenchmark(b, mpscRB, threadNum, threadNum-1)
 }
 
 func BenchmarkHybridMPSCVec(b *testing.B) {
-	mpscRB := lfring.New(lfring.Classical, capacity)
+	mpscRB := lfring.New[int](lfring.Classical, capacity)
 	mpscBenchmarkVec(b, mpscRB, threadNum, threadNum-1)
 }
 
 func BenchmarkHybridSPMCControl(b *testing.B) {
-	mpscRB := lfring.New(lfring.Classical, capacity)
+	mpscRB := lfring.New[int](lfring.Classical, capacity)
 	mpmcBenchmark(b, mpscRB, threadNum, 1)
 }
 
 func BenchmarkHybridSPMC(b *testing.B) {
-	mpscRB := lfring.New(lfring.Classical, capacity)
+	mpscRB := lfring.New[int](lfring.Classical, capacity)
 	spmcBenchmark(b, mpscRB, threadNum, 1)
 }
 
 func BenchmarkHybridSPSCControl(b *testing.B) {
 	runtime.GOMAXPROCS(2)
-	mpscRB := lfring.New(lfring.Classical, capacity)
+	mpscRB := lfring.New[int](lfring.Classical, capacity)
 	mpmcBenchmark(b, mpscRB, 2, 1)
 }
 
 func BenchmarkHybridSPSC(b *testing.B) {
 	runtime.GOMAXPROCS(2)
-	mpscRB := lfring.New(lfring.Classical, capacity)
+	mpscRB := lfring.New[int](lfring.Classical, capacity)
 	spscBenchmark(b, mpscRB, 2, 1)
 }
 
-type fakeBuffer struct {
+type fakeBuffer[T any] struct {
 	capacity uint64
-	ch       chan interface{}
+	ch       chan T
+	empty    T
 }
 
-func newFakeBuffer(capacity uint64) lfring.RingBuffer {
-	return &fakeBuffer{
-		capacity,
-		make(chan interface{}, capacity),
+func newFakeBuffer[T any](capacity uint64) lfring.RingBuffer[T] {
+	return &fakeBuffer[T]{
+		capacity: capacity,
+		ch:       make(chan T, capacity),
 	}
 }
 
-func (r *fakeBuffer) Offer(value interface{}) (success bool) {
+func (r *fakeBuffer[T]) Offer(value T) (success bool) {
 	select {
 	case r.ch <- value:
 		return true
@@ -104,16 +105,16 @@ func (r *fakeBuffer) Offer(value interface{}) (success bool) {
 	}
 }
 
-func (r *fakeBuffer) Poll() (value interface{}, success bool) {
+func (r *fakeBuffer[T]) Poll() (value T, success bool) {
 	select {
 	case v := <-r.ch:
 		return v, true
 	default:
-		return nil, false
+		return r.empty, false
 	}
 }
 
-func (r *fakeBuffer) SingleProducerOffer(valueSupplier func() (v interface{}, finish bool)) {
+func (r *fakeBuffer[T]) SingleProducerOffer(valueSupplier func() (v T, finish bool)) {
 	v, finish := valueSupplier()
 	if finish {
 		return
@@ -122,12 +123,12 @@ func (r *fakeBuffer) SingleProducerOffer(valueSupplier func() (v interface{}, fi
 	r.ch <- v
 }
 
-func (r *fakeBuffer) SingleConsumerPoll(valueConsumer func(interface{})) {
+func (r *fakeBuffer[T]) SingleConsumerPoll(valueConsumer func(T)) {
 	v := <-r.ch
 	valueConsumer(v)
 }
 
-func (r *fakeBuffer) SingleConsumerPollVec(ret []interface{}) (validCnt uint64) {
+func (r *fakeBuffer[T]) SingleConsumerPollVec(ret []T) (validCnt uint64) {
 	return
 }
 
@@ -162,7 +163,7 @@ func manage(b *testing.B, threadCount int, trueCount int) {
 	}()
 }
 
-func mpmcBenchmark(b *testing.B, buffer lfring.RingBuffer, threadCount int, trueCount int) {
+func mpmcBenchmark(b *testing.B, buffer lfring.RingBuffer[int], threadCount int, trueCount int) {
 	ints := setup()
 
 	counter := int32(0)
@@ -185,11 +186,11 @@ func mpmcBenchmark(b *testing.B, buffer lfring.RingBuffer, threadCount int, true
 	b.ReportMetric(float64(counter), "handovers")
 }
 
-func mpscBenchmark(b *testing.B, buffer lfring.RingBuffer, threadCount int, trueCount int) {
+func mpscBenchmark(b *testing.B, buffer lfring.RingBuffer[int], threadCount int, trueCount int) {
 	ints := setup()
 
 	counter := int32(0)
-	consumer := func(v interface{}) {
+	consumer := func(v int) {
 		atomic.AddInt32(&counter, 1)
 	}
 	manage(b, threadCount, trueCount)
@@ -209,11 +210,11 @@ func mpscBenchmark(b *testing.B, buffer lfring.RingBuffer, threadCount int, true
 	b.ReportMetric(float64(counter), "handovers")
 }
 
-func mpscBenchmarkVec(b *testing.B, buffer lfring.RingBuffer, threadCount int, trueCount int) {
+func mpscBenchmarkVec(b *testing.B, buffer lfring.RingBuffer[int], threadCount int, trueCount int) {
 	ints := setup()
 
 	counter := int32(0)
-	ret := make([]interface{}, capacity, capacity)
+	ret := make([]int, capacity, capacity)
 	manage(b, threadCount, trueCount)
 	b.RunParallel(func(pb *testing.PB) {
 		producer := <-controlCh
@@ -232,7 +233,7 @@ func mpscBenchmarkVec(b *testing.B, buffer lfring.RingBuffer, threadCount int, t
 	b.ReportMetric(float64(counter), "handovers")
 }
 
-func spmcBenchmark(b *testing.B, buffer lfring.RingBuffer, threadCount int, trueCount int) {
+func spmcBenchmark(b *testing.B, buffer lfring.RingBuffer[int], threadCount int, trueCount int) {
 	ints := setup()
 
 	counter := int32(0)
@@ -243,10 +244,10 @@ func spmcBenchmark(b *testing.B, buffer lfring.RingBuffer, threadCount int, true
 		for i := 1; pb.Next(); i++ {
 			if producer {
 				j := i
-				buffer.SingleProducerOffer(func() (v interface{}, finish bool) {
+				buffer.SingleProducerOffer(func() (v int, finish bool) {
 					v = ints[(j & (len(ints) - 1))]
 					j++
-					return v, false
+					return
 				})
 			} else {
 				if _, success := buffer.Poll(); success {
@@ -260,11 +261,11 @@ func spmcBenchmark(b *testing.B, buffer lfring.RingBuffer, threadCount int, true
 	b.ReportMetric(float64(counter), "handovers")
 }
 
-func spscBenchmark(b *testing.B, buffer lfring.RingBuffer, threadCount int, trueCount int) {
+func spscBenchmark(b *testing.B, buffer lfring.RingBuffer[int], threadCount int, trueCount int) {
 	ints := setup()
 
 	counter := int32(0)
-	consumer := func(v interface{}) {
+	consumer := func(v int) {
 		atomic.AddInt32(&counter, 1)
 	}
 	manage(b, threadCount, trueCount)
@@ -274,10 +275,10 @@ func spscBenchmark(b *testing.B, buffer lfring.RingBuffer, threadCount int, true
 		for i := 1; pb.Next(); i++ {
 			if producer {
 				j := i
-				buffer.SingleProducerOffer(func() (v interface{}, finish bool) {
+				buffer.SingleProducerOffer(func() (v int, finish bool) {
 					v = ints[(j & (len(ints) - 1))]
 					j++
-					return v, false
+					return
 				})
 			} else {
 				buffer.SingleConsumerPoll(consumer)

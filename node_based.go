@@ -38,29 +38,29 @@ import (
 // The another difference between this to the mpsc is we no longer need isEmpty() and isFull()
 // to check the buffer status, if buffer full / empty will lead the producer / consumer never
 // pass the node.step check.
-type nodeBased struct {
+type nodeBased[T any] struct {
 	head      uint64
 	_padding0 [56]byte
 	tail      uint64
 	_padding1 [56]byte
 	mask      uint64
 	_padding2 [56]byte
-	element   []*node
+	element   []*node[T]
 }
 
-type node struct {
+type node[T any] struct {
 	step     uint64
-	value    interface{}
+	value    T
 	_padding [40]byte
 }
 
-func newNodeBased(capacity uint64) RingBuffer {
-	nodes := make([]*node, capacity)
+func newNodeBased[T any](capacity uint64) RingBuffer[T] {
+	nodes := make([]*node[T], capacity)
 	for i := uint64(0); i < capacity; i++ {
-		nodes[i] = &node{step: i}
+		nodes[i] = &node[T]{step: i}
 	}
 
-	return &nodeBased{
+	return &nodeBased[T]{
 		head:    uint64(0),
 		tail:    uint64(0),
 		mask:    capacity - 1,
@@ -69,7 +69,7 @@ func newNodeBased(capacity uint64) RingBuffer {
 }
 
 // Offer a value pointer.
-func (r *nodeBased) Offer(value interface{}) (success bool) {
+func (r *nodeBased[T]) Offer(value T) (success bool) {
 	oldTail := atomic.LoadUint64(&r.tail)
 	tailNode := r.element[oldTail&r.mask]
 	oldStep := atomic.LoadUint64(&tailNode.step)
@@ -88,25 +88,25 @@ func (r *nodeBased) Offer(value interface{}) (success bool) {
 }
 
 // Poll head value pointer.
-func (r *nodeBased) Poll() (value interface{}, success bool) {
+func (r *nodeBased[T]) Poll() (value T, success bool) {
 	oldHead := atomic.LoadUint64(&r.head)
 	headNode := r.element[oldHead&r.mask]
 	oldStep := atomic.LoadUint64(&headNode.step)
 	// not published yet
 	if oldStep != oldHead+1 {
-		return nil, false
+		return
 	}
 
 	if !atomic.CompareAndSwapUint64(&r.head, oldHead, oldHead+1) {
-		return nil, false
+		return
 	}
 
-	value = *(*interface{})(atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&headNode.value))))
+	value = *(*T)(atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&headNode.value))))
 	atomic.StoreUint64(&headNode.step, oldStep+r.mask)
 	return value, true
 }
 
-func (r *nodeBased) SingleProducerOffer(valueSupplier func() (v interface{}, finish bool)) {
+func (r *nodeBased[T]) SingleProducerOffer(valueSupplier func() (v T, finish bool)) {
 	v, finish := valueSupplier()
 	if finish {
 		return
@@ -116,7 +116,7 @@ func (r *nodeBased) SingleProducerOffer(valueSupplier func() (v interface{}, fin
 	}
 }
 
-func (r *nodeBased) SingleConsumerPoll(valueConsumer func(interface{})) {
+func (r *nodeBased[T]) SingleConsumerPoll(valueConsumer func(T)) {
 	for {
 		if v, success := r.Poll(); success {
 			valueConsumer(v)
@@ -125,6 +125,6 @@ func (r *nodeBased) SingleConsumerPoll(valueConsumer func(interface{})) {
 	}
 }
 
-func (r *nodeBased) SingleConsumerPollVec(ret []interface{}) (end uint64) {
+func (r *nodeBased[T]) SingleConsumerPollVec(ret []T) (end uint64) {
 	return
 }

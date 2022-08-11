@@ -1,12 +1,12 @@
 package lfring
 
 // RingBuffer defines the behavior of ring buffer
-type RingBuffer interface {
-	Offer(interface{}) (success bool)
-	Poll() (value interface{}, success bool)
-	SingleProducerOffer(valueSupplier func() (v interface{}, finish bool))
-	SingleConsumerPoll(valueConsumer func(interface{}))
-	SingleConsumerPollVec(ret []interface{}) (validCnt uint64)
+type RingBuffer[T any] interface {
+	Offer(T) (success bool)
+	Poll() (value T, success bool)
+	SingleProducerOffer(valueSupplier func() (v T, finish bool))
+	SingleConsumerPoll(valueConsumer func(T))
+	SingleConsumerPollVec(ret []T) (validCnt uint64)
 }
 
 // BufferType contains different type names of ring buffer
@@ -23,14 +23,14 @@ const (
 
 // New build a RingBuffer with BufferType and capacity.
 // Expand capacity as power-of-two, to make head/tail calculate faster and simpler
-func New(t BufferType, capacity uint64) RingBuffer {
+func New[T any](t BufferType, capacity uint64) RingBuffer[T] {
 	realCapacity := findPowerOfTwo(capacity)
 
 	switch t {
 	case NodeBased:
-		return newNodeBased(realCapacity)
+		return newNodeBased[T](realCapacity)
 	case Classical:
-		return newClassical(realCapacity)
+		return newClassical[T](realCapacity)
 	default:
 		panic("shouldn't goes here.")
 	}

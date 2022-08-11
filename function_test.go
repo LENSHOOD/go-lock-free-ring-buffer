@@ -12,7 +12,6 @@ type MySuite struct{}
 
 var _ = Suite(&MySuite{})
 
-
 func (s *MySuite) TestFindPowerOfTwo(c *C) {
 	// given
 	cap1 := uint64(0)
@@ -42,7 +41,7 @@ func (s *MySuite) TestOfferAndPollSuccess(c *C) {
 	for _, t := range bufferSet {
 		// given
 		fakeString := "fake"
-		buffer := New(t, 10)
+		buffer := New[*string](t, 10)
 
 		// when
 		result := buffer.Offer(&fakeString)
@@ -58,7 +57,7 @@ func (s *MySuite) TestOfferFailedWhenFull(c *C) {
 	for _, t := range bufferSet {
 		// given
 		capacity := 10
-		buffer := New(t, uint64(capacity))
+		buffer := New[int](t, uint64(capacity))
 		realCapacity := findPowerOfTwo(uint64(capacity + 1))
 		for i := 0; i < int(realCapacity); i++ {
 			buffer.Offer(i)
@@ -76,7 +75,7 @@ func (s *MySuite) TestPollFailedWhenEmpty(c *C) {
 	for _, t := range bufferSet {
 		// given
 		capacity := 10
-		buffer := New(t, uint64(capacity))
+		buffer := New[int](t, uint64(capacity))
 
 		// when
 		_, success := buffer.Poll()
@@ -90,7 +89,7 @@ func (s *MySuite) TestRingBufferShift(c *C) {
 	for _, t := range bufferSet {
 		// given
 		capacity := 10
-		buffer := New(t, uint64(capacity))
+		buffer := New[int](t, uint64(capacity))
 
 		// when
 		for i := 0; i < 13; i++ {
