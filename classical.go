@@ -2,7 +2,6 @@ package lfring
 
 import (
 	"sync/atomic"
-	"unsafe"
 )
 
 type classical[T any] struct {
@@ -10,7 +9,7 @@ type classical[T any] struct {
 	tail     uint64
 	capacity uint64
 	mask     uint64
-	element  []T
+	element  []*T
 }
 
 func newClassical[T any](capacity uint64) RingBuffer[T] {
@@ -19,7 +18,7 @@ func newClassical[T any](capacity uint64) RingBuffer[T] {
 		tail:     uint64(0),
 		capacity: capacity,
 		mask:     capacity - 1,
-		element:  make([]T, capacity),
+		element:  make([]*T, capacity),
 	}
 }
 
@@ -31,7 +30,7 @@ func (r *classical[T]) Offer(value T) (success bool) {
 	}
 
 	newTail := oldTail + 1
-	tailNode := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newTail&r.mask])))
+	tailNode := r.element[newTail&r.mask]
 	// not published yet
 	if tailNode != nil {
 		return false
@@ -40,7 +39,7 @@ func (r *classical[T]) Offer(value T) (success bool) {
 		return false
 	}
 
-	atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newTail&r.mask])), unsafe.Pointer(&value))
+	r.element[newTail&r.mask] = &value
 	return true
 }
 
@@ -53,7 +52,7 @@ func (r *classical[T]) SingleProducerOffer(valueSupplier func() (v T, finish boo
 
 	newTail := oldTail + 1
 	for ; newTail-oldHead < r.capacity; newTail++ {
-		tailNode := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newTail&r.mask])))
+		tailNode := r.element[newTail&r.mask]
 		// not published yet
 		if tailNode != nil {
 			break
@@ -63,7 +62,7 @@ func (r *classical[T]) SingleProducerOffer(valueSupplier func() (v T, finish boo
 		if finish {
 			break
 		}
-		atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newTail&r.mask])), unsafe.Pointer(&v))
+		r.element[newTail&r.mask] = &v
 	}
 	atomic.StoreUint64(&r.tail, newTail-1)
 }
@@ -76,7 +75,7 @@ func (r *classical[T]) Poll() (value T, success bool) {
 	}
 
 	newHead := oldHead + 1
-	headNode := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newHead&r.mask])))
+	headNode := r.element[newHead&r.mask]
 	// not published yet
 	if headNode == nil {
 		return
@@ -84,9 +83,9 @@ func (r *classical[T]) Poll() (value T, success bool) {
 	if !atomic.CompareAndSwapUint64(&r.head, oldHead, newHead) {
 		return
 	}
-	atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newHead&r.mask])), nil)
+	r.element[newHead&r.mask] = nil
 
-	return *(*T)(headNode), true
+	return *headNode, true
 }
 
 func (r *classical[T]) SingleConsumerPoll(valueConsumer func(T)) {
@@ -98,13 +97,13 @@ func (r *classical[T]) SingleConsumerPoll(valueConsumer func(T)) {
 
 	currHead := oldHead + 1
 	for ; currHead <= oldTail; currHead++ {
-		currNode := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[currHead&r.mask])))
+		currNode := r.element[currHead&r.mask]
 		// not published yet
 		if currNode == nil {
 			break
 		}
-		valueConsumer(*(*T)(currNode))
-		atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[currHead&r.mask])), nil)
+		valueConsumer(*currNode)
+		r.element[currHead&r.mask] = nil
 	}
 
 	atomic.StoreUint64(&r.head, currHead-1)
@@ -119,13 +118,13 @@ func (r *classical[T]) SingleConsumerPollVec(ret []T) (validCnt uint64) {
 
 	currHead := oldHead + 1
 	for ; currHead <= oldTail; currHead++ {
-		currNode := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[currHead&r.mask])))
+		currNode := r.element[currHead&r.mask]
 		// not published yet
 		if currNode == nil {
 			break
 		}
-		ret[currHead-oldHead-1] = *(*T)(currNode)
-		atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[currHead&r.mask])), nil)
+		ret[currHead-oldHead-1] = *currNode
+		r.element[currHead&r.mask] = nil
 	}
 
 	atomic.StoreUint64(&r.head, currHead-1)

@@ -2,7 +2,6 @@ package lfring
 
 import (
 	atomic "sync/atomic"
-	"unsafe"
 )
 
 // nodeBased defines a multi-producer multi-consumer ring buffer.
@@ -82,7 +81,7 @@ func (r *nodeBased[T]) Offer(value T) (success bool) {
 		return false
 	}
 
-	atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&tailNode.value)), unsafe.Pointer(&value))
+	tailNode.value = value
 	atomic.StoreUint64(&tailNode.step, tailNode.step+1)
 	return true
 }
@@ -101,7 +100,7 @@ func (r *nodeBased[T]) Poll() (value T, success bool) {
 		return
 	}
 
-	value = *(*T)(atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&headNode.value))))
+	value = headNode.value
 	atomic.StoreUint64(&headNode.step, oldStep+r.mask)
 	return value, true
 }

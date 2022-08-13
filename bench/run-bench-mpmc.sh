@@ -1,7 +1,7 @@
 #!/bin/bash
 
 do_bench() {
-  go test -run "^$" -bench "^.+MPMC$" -benchtime=1s -count=3 | \
+  go test -run "^$" -bench "^.+MPMC$" -benchtime=1s -count=100 | \
     awk -v value="$1" '/NodeMPMC.+handovers/ || /HybridMPMC.+handovers/ || /ChannelMPMC.+handovers/ { printf "%s=(%d,%f)\n", $1, value, $5 }' \
     >> "$2"
 }
