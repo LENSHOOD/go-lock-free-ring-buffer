@@ -5,46 +5,46 @@ This repo is an implementation of lock-free ring buffer built on Golang.
 
 You can find more information about this implementation at my [blog post](https://lenshood.github.io/2021/04/19/lock-free-ring-buffer/#more).
 
+Please note that v0.2.0 involved [generics feature](https://go.dev/doc/go1.18#generics), which requires go version >= 1.18. Lower go version please choose v0.1.0.
+
 ### API
 Below is the API and how to use it:
 ```go
-type RingBuffer interface {
-    Offer(interface{}) (success bool)
-    Poll() (value interface{}, success bool)
-    SingleProducerOffer(valueSupplier func() (v interface{}, finish bool))
-    SingleConsumerPoll(valueConsumer func(interface{}))
+type RingBuffer[T any] interface {
+  Offer(T) (success bool)
+  Poll() (value T, success bool)
 }
 ```
-Generally, we can simply call `Offer()` and `Poll()` to use it like normal queue. Any types are acceptable, but for the memory efficiency concern, pointer is a better choice to handover by the ring buffer, no GC will happen during read/write.
+We can simply call `Offer()` and `Poll()` to use it like a normal queue. 
 
-We can create one as follows:
+The GCShape introduced by generics feature can ensure that no heap memory allocation during `Offer()` and `Poll()`. [Here](https://lenshood.github.io/2022/08/01/optimize-lfring-performance/) is an article to explain the performance changes before and after involve generic.
+
+When create an instance, say we want to use it to store `string`:
 ```go
 import (
-    lfring "github.com/LENSHOOD/go-lock-free-ring-buffer"
+  "github.com/LENSHOOD/go-lock-free-ring-buffer"
 )
 
-buffer := lfring.New(lfring.Classical, 16)
+buffer := lfring.New[string](lfring.NodeBased, 16)
 ```
 
 The first argument of `New()` is the type of ring buffer, I currently provide two implementations, they both have same behavior, but benchmark test shows that the "NodeBased" one has better performance.
 
-The second argument is `capacity`, which defines how big the ring buffer is (the calculation unit is the number of slots).
-
-#### Method for special circumstance
-There's two other methods you may notice at API:
-- `SingleProducerOffer()`
-- `SingleConsumerPoll()`
-
-This two methods is to cover two special circumstances as: multi-producer single-consumer, and single-producer multi-consumer.
-
-When the usage scenario is mpsc or spmc, use such method "may" improve the handover performance since in those scenarios we can safely discard some heavy operations.
-
-However, the performance test([in my blog post](https://lenshood.github.io/2021/04/19/lock-free-ring-buffer/#more)) shows that `SingleConsumerPoll()` do improve the mpsc performance to about 1.4x, but `SingleProducerOffer()` become slower at spmc.
+The second argument `capacity` defines how big the ring buffer is, in consideration of different concrete type, the size of buffer maybe different. For instance, string has two underlying elements `str unsafe.Pointer` and `len int`, so if we build a buffer has `capacity=16`, the size of buffer array will be `16*(8+8)=256 bytes`(64bit platform).
 
 ### Performance
-1. Two type of lock-free ring buffer compare with go-channel at different capacities
-![](https://lenshood.github.io/2021/04/19/lock-free-ring-buffer/5.png)
-2. Two type of lock-free ring buffer compare with go-channel at different producers / consumers ratio
-![](https://lenshood.github.io/2021/04/19/lock-free-ring-buffer/6.png)
-3. Two type of lock-free ring buffer compare with go-channel at different threads
-![](https://lenshood.github.io/2021/04/19/lock-free-ring-buffer/7.png)
+1. Two types of lock-free ring buffer compare with go channel in different capacities
+![](https://github.com/LENSHOOD/lenshood.github.io/blob/source/source/_posts/decide-lfring-channel/capacity-all.png?raw=true)
+
+2. Two types of lock-free ring buffer compare with go channel in different producers / consumers ratio
+![](https://github.com/LENSHOOD/lenshood.github.io/blob/source/source/_posts/decide-lfring-channel/thread-all.png?raw=true)
+
+3. Two types of lock-free ring buffer compare with go channel in different threads
+![](https://github.com/LENSHOOD/lenshood.github.io/blob/source/source/_posts/decide-lfring-channel/producer-all.png?raw=true)
+
+From above performance curve, we can see that ring buffer get better performance under some specific conditions. Below image clarifies the proper use scenario of ring buffer.
+![](https://github.com/LENSHOOD/lenshood.github.io/blob/source/source/_posts/decide-lfring-channel/3d-capacity-producer.png?raw=true)
+
+As the result, ring buffer fits better in the case of producers/consumers not balance, and capacity not too big.
+
+Above images are screenshots, check full charts [here](https://lenshood.github.io/2022/09/04/decide-lfring-channel/).
