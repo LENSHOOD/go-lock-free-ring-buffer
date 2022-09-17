@@ -48,3 +48,10 @@ From above performance curve, we can see that ring buffer get better performance
 As the result, ring buffer fits better in the case of producers/consumers not balance, and capacity not too big.
 
 Above images are screenshots, check full charts [here](https://lenshood.github.io/2022/09/04/decide-lfring-channel/).
+
+### Unfinished features
+- [ ] Try to optimize the performance of single producer/consumer performance
+
+    - Based on the previous result, the ratio of production/consumption speed plays a partial key role to influence ordinary channel's performance. We can move one step forward, to do some optimization at such a special case of single producer/consumer. 
+
+    - Single means no contention, so the costly CAS operation may be replaced with normal operation, and single load/store may be replaced with vectorized load/store. Furthermore, once we say vectorization, we think introduce SIMD to accelerate load/store operations.
