@@ -106,24 +106,40 @@ func (r *nodeBased[T]) Poll() (value T, success bool) {
 }
 
 func (r *nodeBased[T]) SingleProducerOffer(valueSupplier func() (v T, finish bool)) {
-	v, finish := valueSupplier()
-	if finish {
-		return
-	}
-
-	for r.Offer(v) {
-	}
-}
-
-func (r *nodeBased[T]) SingleConsumerPoll(valueConsumer func(T)) {
+	// TODO: currently just wrapper
 	for {
-		if v, success := r.Poll(); success {
-			valueConsumer(v)
-			break
+		v, finish := valueSupplier()
+		if finish {
+			return
+		}
+
+		for !r.Offer(v) {
 		}
 	}
 }
 
+func (r *nodeBased[T]) SingleConsumerPoll(valueConsumer func(T)) {
+	// TODO: currently just wrapper
+	for {
+		v, success := r.Poll()
+		if !success {
+			return
+		}
+		valueConsumer(v)
+	}
+}
+
 func (r *nodeBased[T]) SingleConsumerPollVec(ret []T) (end uint64) {
-	return
+	// TODO: currently just wrapper
+	var cnt int
+	for ; cnt < len(ret); cnt++ {
+		v, success := r.Poll()
+		if !success {
+			break
+		}
+
+		ret[cnt] = v
+	}
+
+	return uint64(cnt)
 }
